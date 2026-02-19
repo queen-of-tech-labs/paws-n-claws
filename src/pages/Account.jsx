@@ -395,7 +395,7 @@ export default function Account() {
               <Button
                 variant="outline"
                 className="border-slate-600 text-slate-300 hover:bg-slate-800 w-full"
-                onClick={() => { await api.auth.logout('/'); }}
+                onClick={async () => { await api.auth.logout('/'); }}
               >
                 <LogOut className="w-4 h-4 mr-2" />
                 Log Out
