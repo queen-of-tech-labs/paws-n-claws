@@ -77,7 +77,7 @@ export default function Layout({ children, currentPageName }) {
 
       // Check if account is disabled
       if (authUser && (authUser.account_status === 'suspended' || authUser.account_status === 'banned')) {
-        { await api.auth.logout('/'); });
+        await api.auth.logout('/');
         return;
       }
 
