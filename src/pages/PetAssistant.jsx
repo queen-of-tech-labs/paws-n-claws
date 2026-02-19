@@ -24,7 +24,7 @@ export default function PetAssistantPage() {
     const checkUser = async () => {
       const isAuthenticated = await api.auth.isAuthenticated();
       if (!isAuthenticated) {
-        navigate('/login'));
+        navigate('/login');
         return;
       }
       const userData = await api.auth.me();
