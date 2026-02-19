@@ -311,7 +311,7 @@ export default function Layout({ children, currentPageName }) {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onClick={() => { await api.auth.logout('/'); })}>
+                <DropdownMenuItem onClick={async () => { await api.auth.logout('/'); }}>
                   <LogOut className="w-4 h-4 mr-2" /> Log Out
                 </DropdownMenuItem>
               </DropdownMenuContent>
