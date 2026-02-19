@@ -37,6 +37,8 @@ export async function registerDeviceOnLogin(user) {
       console.log('✓ Device registered with backend');
     }
   }
+} else {
+  console.log('Notification permission not granted, skipping device registration');
 }
 
       if (deviceToken) {
