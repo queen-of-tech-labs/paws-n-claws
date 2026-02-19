@@ -1,5 +1,5 @@
 import api from '@/api/firebaseClient';
-import { initializeOneSignal, getDeviceToken, registerDeviceWithBackend } from './oneSignalService';
+import { initializeOneSignal, getSubscriptionId } from './oneSignalService';
 
 /**
  * Complete device registration on every login
