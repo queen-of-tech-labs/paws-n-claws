@@ -1,5 +1,5 @@
 import api from '@/api/firebaseClient';
-import { initializeOneSignal, requestNotificationPermission, registerDeviceWithBackend } from './oneSignalService';
+import { initializeOneSignal, requestPermission, getSubscriptionId } from './oneSignalService';
 import OneSignal from 'npm:onesignal-web-push-sdk@0.0.0';
 
 /**
