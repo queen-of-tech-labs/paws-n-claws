@@ -47,10 +47,9 @@ export async function requestNotificationPermission() {
  */
 export async function registerDevice(userId) {
   try {
-    // Wait a moment for OneSignal to update after permission grant
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    const deviceToken = await getDeviceToken();
+    const deviceToken = await getSubscriptionId();
 
     if (!deviceToken) {
       console.warn('Failed to get device token');
@@ -59,11 +58,6 @@ export async function registerDevice(userId) {
 
     console.log('Device token obtained:', deviceToken);
 
-    // Register device with backend
-    await registerDeviceWithBackend(deviceToken, 'Web Browser');
-    console.log('Device registered with backend');
-
-    // Set external user ID
     if (window.OneSignal && userId) {
       window.OneSignal.login(userId);
       console.log('External user ID set:', userId);
