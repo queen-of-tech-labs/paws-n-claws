@@ -145,7 +145,7 @@ export default function Account() {
     try {
       const response = await api.functions.invoke('deleteUserAccount', { confirmation: 'DELETE' });
       alert("Your account has been scheduled for deletion in 30 days. You will be logged out now.");
-      { await api.auth.logout('/'); });
+      await api.auth.logout('/');
     } catch (error) {
       console.error("Delete account error:", error);
       alert(error.response?.data?.error || "Failed to schedule account deletion. Please try again.");
