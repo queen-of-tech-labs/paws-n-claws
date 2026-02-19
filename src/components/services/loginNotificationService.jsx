@@ -27,9 +27,17 @@ export async function registerDeviceOnLogin(user) {
     console.log('Notification permission:', permission);
 
     if (permission === 'granted') {
-      // Step 3: Get device token
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const deviceToken = await getDeviceToken();
+  // Step 3: Get device token
+  await new Promise(resolve => setTimeout(resolve, 500));
+  const deviceToken = await getSubscriptionId();
+  if (deviceToken) {
+    console.log('✓ Device token obtained:', deviceToken);
+    if (window.OneSignal && user.id) {
+      await window.OneSignal.login(user.id);
+      console.log('✓ Device registered with backend');
+    }
+  }
+}
 
       if (deviceToken) {
         console.log('✓ Device token obtained:', deviceToken);
