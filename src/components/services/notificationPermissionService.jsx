@@ -1,4 +1,4 @@
-import { getDeviceToken, registerDeviceWithBackend } from './oneSignalService';
+import { getSubscriptionId, requestPermission } from './oneSignalService';
 
 /**
  * Check the current notification permission status
