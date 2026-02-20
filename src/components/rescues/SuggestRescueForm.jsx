@@ -45,20 +45,19 @@ export default function SuggestRescueForm({ onClose }) {
     e.preventDefault();
     setLoading(true);
 
-    await api.entities.RescueSuggestion.create(formData);
-    toast.success("Thank you! Your suggestion has been submitted for review.");
-    
-    setFormData({ 
-      name: "", 
-      website: "", 
-      address: "", 
-      description: "",
-      accepts_volunteers: false,
-      accepts_donations: false,
-      animals_served: []
-    });
-    setLoading(false);
-    onClose();
+    try {
+      await api.entities.RescueSuggestion.create({
+        ...formData,
+        status: "pending",  // Always start as pending for admin review
+      });
+      toast.success("Thank you! Your suggestion has been submitted for review.");
+      onClose();
+    } catch (err) {
+      console.error("Failed to submit suggestion:", err);
+      toast.error("Failed to submit. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
