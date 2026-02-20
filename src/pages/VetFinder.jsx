@@ -4,18 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Search, Phone, Globe, Star, AlertTriangle, Loader2, Navigation } from "lucide-react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
+import GoogleMap from "@/components/GoogleMap";
 import { motion } from "framer-motion";
 
-// Fix leaflet default markers
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
 
 // Geocode via server-side Vercel function (avoids CORS)
 async function geocodeLocation(locationStr) {
@@ -263,35 +254,18 @@ export default function VetFinder() {
         {/* Map */}
         {results.length > 0 && (
           <Card className="border-orange-100 overflow-hidden">
-            <div className="h-[400px] w-full">
-              <MapContainer
-                center={mapCenter}
-                zoom={12}
-                style={{ height: "100%", width: "100%" }}
-                key={mapCenter.join(",")}
-              >
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                {results
-                  .filter((v) => v.lat && v.lng)
-                  .map((vet, i) => (
-                    <Marker key={i} position={[vet.lat, vet.lng]}>
-                      <Popup>
-                        <strong>{vet.name}</strong>
-                        <br />
-                        {vet.address}
-                        {vet.rating && (
-                          <>
-                            <br />⭐ {vet.rating} ({vet.review_count} reviews)
-                          </>
-                        )}
-                      </Popup>
-                    </Marker>
-                  ))}
-              </MapContainer>
-            </div>
+            <GoogleMap
+              center={{ lat: mapCenter[0], lng: mapCenter[1] }}
+              markers={results.filter(v => v.lat && v.lng).map(v => ({
+                lat: v.lat,
+                lng: v.lng,
+                title: v.name,
+                subtitle: v.address,
+                rating: v.rating,
+                review_count: v.review_count,
+              }))}
+              height="400px"
+            />
           </Card>
         )}
       </div>

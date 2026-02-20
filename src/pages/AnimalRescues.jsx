@@ -8,11 +8,9 @@ import {
   MapPin, Search, Phone, Globe, Heart, HandHeart,
   ExternalLink, Loader2, Navigation, Users, Plus, Star, AlertTriangle
 } from "lucide-react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
 import { motion } from "framer-motion";
 import SuggestRescueForm from "../components/rescues/SuggestRescueForm";
+import GoogleMap from "@/components/GoogleMap";
 import api from "@/api/firebaseClient";
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -179,30 +177,18 @@ export default function AnimalRescues() {
           {/* Map */}
           <div className="space-y-3 order-2 lg:order-1">
             <Card className="border-orange-100 overflow-hidden">
-              <div className="h-[400px] lg:h-[600px]">
-                <MapContainer
-                  center={mapCenter}
-                  zoom={12}
-                  style={{ height: "100%", width: "100%" }}
-                  key={mapCenter.join(",")}
-                >
-                  <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
-                  {filtered
-                    .filter((r) => r.lat && r.lng)
-                    .map((rescue, i) => (
-                      <Marker key={i} position={[rescue.lat, rescue.lng]}>
-                        <Popup>
-                          <strong>{rescue.name}</strong>
-                          <br />
-                          {rescue.address}
-                        </Popup>
-                      </Marker>
-                    ))}
-                </MapContainer>
-              </div>
+              <GoogleMap
+                center={{ lat: mapCenter[0], lng: mapCenter[1] }}
+                markers={filtered.filter(r => r.lat && r.lng).map(r => ({
+                  lat: r.lat,
+                  lng: r.lng,
+                  title: r.name,
+                  subtitle: r.address,
+                  rating: r.rating,
+                  review_count: r.review_count,
+                }))}
+                height="400px"
+              />
             </Card>
             <Button
               variant="outline"
