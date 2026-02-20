@@ -19,7 +19,6 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Google Places API key not configured on server' });
   }
 
-  // Use the new Places API (New) Nearby Search endpoint
   const url = 'https://places.googleapis.com/v1/places:searchNearby';
 
   const body = {
@@ -34,7 +33,6 @@ export default async function handler(req, res) {
         radius: 10000.0,
       },
     },
-    ...(query && { textQuery: query }),
   };
 
   try {
