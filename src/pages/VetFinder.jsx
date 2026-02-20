@@ -17,33 +17,21 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-const PLACES_API_KEY = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
-
-// Geocode a location string to lat/lng using Google Geocoding API
+// Geocode via server-side Vercel function (avoids CORS)
 async function geocodeLocation(locationStr) {
-  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(locationStr)}&key=${PLACES_API_KEY}`;
-  const res = await fetch(url);
+  const res = await fetch(`/api/geocode?address=${encodeURIComponent(locationStr)}`);
   const data = await res.json();
-  if (data.results && data.results.length > 0) {
-    const { lat, lng } = data.results[0].geometry.location;
-    return { lat, lng };
-  }
-  throw new Error("Location not found. Please try a different address or ZIP code.");
+  if (!res.ok) throw new Error(data.error || "Location not found. Please try a different address or ZIP code.");
+  return { lat: data.lat, lng: data.lng };
 }
 
-// Search for vets using Google Places Nearby Search
+// Search for vets via server-side Vercel function (avoids CORS)
 async function searchVets(lat, lng, keyword, isEmergency) {
   const query = isEmergency
     ? "emergency veterinary hospital"
     : `veterinarian ${keyword || ""}`.trim();
 
-  const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=10000&type=veterinary_care&keyword=${encodeURIComponent(query)}&key=${PLACES_API_KEY}`;
-
-  // NOTE: Google Places API doesn't support direct browser calls due to CORS.
-  // We use a CORS proxy or call via a Vercel API route.
-  // Using a Vercel serverless function at /api/places-search
-  const proxyUrl = `/api/places-search?lat=${lat}&lng=${lng}&query=${encodeURIComponent(query)}`;
-  const res = await fetch(proxyUrl);
+  const res = await fetch(`/api/places-search?lat=${lat}&lng=${lng}&query=${encodeURIComponent(query)}`);
   if (!res.ok) throw new Error("Failed to fetch vet listings.");
   const data = await res.json();
   return data.results || [];
@@ -56,15 +44,16 @@ function formatVet(place) {
     address: place.vicinity,
     rating: place.rating,
     review_count: place.user_ratings_total,
-    is_emergency: place.name?.toLowerCase().includes("emergency") || place.name?.toLowerCase().includes("24"),
-    hours: place.opening_hours?.open_now !== undefined
-      ? (place.opening_hours.open_now ? "Open now" : "Closed now")
-      : null,
+    is_emergency:
+      place.name?.toLowerCase().includes("emergency") ||
+      place.name?.toLowerCase().includes("24"),
+    hours:
+      place.opening_hours?.open_now !== undefined
+        ? place.opening_hours.open_now ? "Open now" : "Closed now"
+        : null,
     lat: place.geometry?.location?.lat,
     lng: place.geometry?.location?.lng,
     place_id: place.place_id,
-    phone: null, // Requires a Place Details call — loaded on demand
-    website: null,
   };
 }
 
@@ -90,6 +79,9 @@ export default function VetFinder() {
       const { lat, lng } = await geocodeLocation(location);
       setMapCenter([lat, lng]);
       const places = await searchVets(lat, lng, searchQuery, isEmergency);
+      if (places.length === 0) {
+        setError("No vets found in that area. Try a different location or search term.");
+      }
       setResults(places.map(formatVet));
     } catch (err) {
       setError(err.message || "Something went wrong. Please try again.");
@@ -148,13 +140,25 @@ export default function VetFinder() {
                 <Button
                   variant={isEmergency ? "default" : "outline"}
                   onClick={() => setIsEmergency(!isEmergency)}
-                  className={isEmergency ? "bg-red-500 hover:bg-red-600 text-white" : "border-red-200 text-red-500"}
+                  className={
+                    isEmergency
+                      ? "bg-red-500 hover:bg-red-600 text-white"
+                      : "border-red-200 text-red-500"
+                  }
                 >
                   <AlertTriangle className="w-4 h-4 mr-1.5" />
                   Emergency
                 </Button>
-                <Button onClick={handleSearch} disabled={loading} className="bg-[#F97066] hover:bg-[#E5524A] text-white">
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                <Button
+                  onClick={handleSearch}
+                  disabled={loading}
+                  className="bg-[#F97066] hover:bg-[#E5524A] text-white"
+                >
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4" />
+                  )}
                   <span className="ml-1.5 hidden sm:inline">Search</span>
                 </Button>
               </div>
@@ -210,9 +214,13 @@ export default function VetFinder() {
                         {vet.rating && (
                           <div className="flex items-center gap-1 mt-2">
                             <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                            <span className="text-sm font-medium text-[#3D2E24]">{vet.rating}</span>
+                            <span className="text-sm font-medium text-[#3D2E24]">
+                              {vet.rating}
+                            </span>
                             {vet.review_count && (
-                              <span className="text-xs text-[#6B5B50]/50">({vet.review_count} reviews)</span>
+                              <span className="text-xs text-[#6B5B50]/50">
+                                ({vet.review_count} reviews)
+                              </span>
                             )}
                           </div>
                         )}
@@ -266,16 +274,22 @@ export default function VetFinder() {
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-                {results.filter((v) => v.lat && v.lng).map((vet, i) => (
-                  <Marker key={i} position={[vet.lat, vet.lng]}>
-                    <Popup>
-                      <strong>{vet.name}</strong>
-                      <br />
-                      {vet.address}
-                      {vet.rating && <><br />⭐ {vet.rating} ({vet.review_count} reviews)</>}
-                    </Popup>
-                  </Marker>
-                ))}
+                {results
+                  .filter((v) => v.lat && v.lng)
+                  .map((vet, i) => (
+                    <Marker key={i} position={[vet.lat, vet.lng]}>
+                      <Popup>
+                        <strong>{vet.name}</strong>
+                        <br />
+                        {vet.address}
+                        {vet.rating && (
+                          <>
+                            <br />⭐ {vet.rating} ({vet.review_count} reviews)
+                          </>
+                        )}
+                      </Popup>
+                    </Marker>
+                  ))}
               </MapContainer>
             </div>
           </Card>
