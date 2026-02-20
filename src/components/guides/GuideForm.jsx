@@ -13,7 +13,8 @@ import {
 import { AlertCircle, Upload, X, Save } from "lucide-react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
-import api from '@/api/firebaseClient';
+import api, { fbStorage } from '@/api/firebaseClient';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const petTypes = [
   { value: "dog", label: "Dog" },
@@ -107,7 +108,9 @@ export default function GuideForm({
 
     setUploadingImage(true);
     try {
-      const { file_url } = await api.integrations.Core.UploadFile({ file });
+      const storageRef = ref(fbStorage, `guide-images/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const file_url = await getDownloadURL(storageRef);
       setFormData({ ...formData, image_url: file_url });
       setErrors({ ...errors, image: "" });
     } catch (err) {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import api from '@/api/firebaseClient';
+import api, { fbStorage } from '@/api/firebaseClient';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -90,7 +91,9 @@ export default function AdminGuideManagement() {
       
       setImporting(true);
       try {
-        const { file_url } = await api.integrations.Core.UploadFile({ file });
+        const storageRef = ref(fbStorage, `guide-imports/${Date.now()}_${file.name}`);
+        await uploadBytes(storageRef, file);
+        const file_url = await getDownloadURL(storageRef);
         const response = await api.functions.invoke('importPetGuides', { file_url });
         
         if (response.data.success) {

@@ -1,0 +1,22 @@
+{
+  "name": "Paws & Claws Companion",
+  "short_name": "Paws & Claws",
+  "description": "Your complete pet care companion app",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#F97066",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192' fill='%23F97066'%3E%3Cpath d='M80 32C80 47 69 58 54 58S28 47 28 32 39 6 54 6 80 17 80 32zm52 0c0 15-11 26-26 26S80 47 80 32 91 6 106 6s26 11 26 26zM32 80c15 0 26 11 26 26S47 132 32 132 6 121 6 106s11-26 26-26zm128 0c15 0 26 11 26 26s-11 26-26 26-26-11-26-26 11-26 26-26zM96 88c24 0 48 18 48 42v10H48v-10c0-24 24-42 48-42z'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%23F97066'%3E%3Cpath d='M80 32C80 47 69 58 54 58S28 47 28 32 39 6 54 6 80 17 80 32zm52 0c0 15-11 26-26 26S80 47 80 32 91 6 106 6s26 11 26 26zM32 80c15 0 26 11 26 26S47 132 32 132 6 121 6 106s11-26 26-26zm128 0c15 0 26 11 26 26s-11 26-26 26-26-11-26-26 11-26 26-26zM96 88c24 0 48 18 48 42v10H48v-10c0-24 24-42 48-42z'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -20,6 +20,11 @@ const CARE_TYPES = [
   { value: "birthday", label: "Birthday" },
 ];
 
+const typeMapping = {
+  vaccination: 'vaccination', medication: 'medication', weight: 'checkup',
+  grooming: 'grooming', training: 'other', milestone: 'other', birthday: 'birthday',
+};
+
 function convertToUTC(localTime) {
   if (!localTime) return "00:00";
   const now = new Date();
@@ -29,16 +34,6 @@ function convertToUTC(localTime) {
   const utcMinutes = String(localDate.getUTCMinutes()).padStart(2, '0');
   return `${utcHours}:${utcMinutes}`;
 }
-
-const typeMapping = {
-  vaccination: 'vaccination',
-  medication: 'medication',
-  weight: 'checkup',
-  grooming: 'grooming',
-  training: 'other',
-  milestone: 'other',
-  birthday: 'birthday',
-};
 
 export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved, user }) {
   const [form, setForm] = useState(() => {
@@ -66,7 +61,6 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
   const [reminderTime, setReminderTime] = useState("09:00");
   const [existingReminderId, setExistingReminderId] = useState(null);
 
-  // Load existing reminder when editing
   React.useEffect(() => {
     if (entry?.id && open) {
       api.entities.Reminder.filter({
@@ -80,7 +74,7 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
           setReminderDueDate(reminder.due_date);
           setReminderTime(reminder.due_time || "09:00");
         }
-      });
+      }).catch(() => {});
     }
   }, [entry?.id, open]);
 
@@ -91,7 +85,6 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
     setSaving(true);
     try {
       const data = { ...form };
-
       delete data.next_due_date;
 
       if (form.type !== "weight") {
@@ -117,16 +110,13 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
       if (!data.pet_id && petId) data.pet_id = petId;
 
       let savedId = entry?.id;
-
       if (entry?.id) {
         await api.entities.CareLog.update(entry.id, data);
       } else {
-        // ✅ FIX: capture new doc id so reminder can be linked
         const created = await api.entities.CareLog.create(data);
         savedId = created.id;
       }
 
-      // ✅ FIX: Handle reminder for BOTH create and edit (was only edit before)
       if (createReminder && reminderDueDate && savedId) {
         const reminderData = {
           pet_id: data.pet_id,
@@ -142,7 +132,6 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
           related_entity_type: 'care_log',
           related_entity_id: savedId,
         };
-
         if (existingReminderId) {
           await api.entities.Reminder.update(existingReminderId, reminderData);
         } else {
@@ -174,9 +163,7 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
               <Select value={form.pet_id} onValueChange={(v) => handleChange("pet_id", v)}>
                 <SelectTrigger><SelectValue placeholder="Select pet" /></SelectTrigger>
                 <SelectContent>
-                  {pets.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
+                  {pets.map(p => (<SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
@@ -188,9 +175,7 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
               <Select value={form.type} onValueChange={(v) => handleChange("type", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {CARE_TYPES.map(t => (
-                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                  ))}
+                  {CARE_TYPES.map(t => (<SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
@@ -242,21 +227,11 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Reminder Date *</Label>
-                <Input
-                  type="date"
-                  value={reminderDueDate}
-                  onChange={(e) => setReminderDueDate(e.target.value)}
-                  required={createReminder}
-                />
+                <Input type="date" value={reminderDueDate} onChange={(e) => setReminderDueDate(e.target.value)} required={createReminder} />
               </div>
               <div className="space-y-2">
                 <Label>Time of Day *</Label>
-                <Input
-                  type="time"
-                  value={reminderTime}
-                  onChange={(e) => setReminderTime(e.target.value)}
-                  required={createReminder}
-                />
+                <Input type="time" value={reminderTime} onChange={(e) => setReminderTime(e.target.value)} required={createReminder} />
               </div>
             </div>
           )}
@@ -280,7 +255,6 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
                   <Input value={form.medication_frequency} onChange={(e) => handleChange("medication_frequency", e.target.value)} placeholder="e.g. Twice daily" />
                 </div>
               </div>
-
               <div className="space-y-2">
                 <Label>Recurrence</Label>
                 <Select value={form.recurrence} onValueChange={(v) => handleChange("recurrence", v)}>
@@ -298,7 +272,6 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
                   </SelectContent>
                 </Select>
               </div>
-
               {form.recurrence === "custom" && (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -318,47 +291,18 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
                   </div>
                 </div>
               )}
-
               <div className="space-y-2">
                 <Label>Medication Times</Label>
                 <div className="space-y-2">
                   {form.medication_times && form.medication_times.map((time, idx) => (
                     <div key={idx} className="flex gap-2">
-                      <Input
-                        type="time"
-                        value={time}
-                        onChange={(e) => {
-                          const newTimes = [...form.medication_times];
-                          newTimes[idx] = e.target.value;
-                          handleChange("medication_times", newTimes);
-                        }}
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const newTimes = form.medication_times.filter((_, i) => i !== idx);
-                          handleChange("medication_times", newTimes);
-                        }}
-                      >
-                        Remove
-                      </Button>
+                      <Input type="time" value={time} onChange={(e) => { const t = [...form.medication_times]; t[idx] = e.target.value; handleChange("medication_times", t); }} className="flex-1" />
+                      <Button type="button" variant="outline" size="sm" onClick={() => handleChange("medication_times", form.medication_times.filter((_, i) => i !== idx))}>Remove</Button>
                     </div>
                   ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => handleChange("medication_times", [...(form.medication_times || []), ""])}
-                  >
-                    + Add Time
-                  </Button>
+                  <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => handleChange("medication_times", [...(form.medication_times || []), ""])}>+ Add Time</Button>
                 </div>
               </div>
-
               {(form.recurrence === "daily" || form.recurrence === "2x-daily") && (
                 <div className="space-y-2">
                   <Label>Remind me before dose (minutes)</Label>

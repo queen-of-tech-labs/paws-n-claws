@@ -50,7 +50,6 @@ export default function AppointmentForm({ open, onClose, petId, pets, appointmen
   const [reminderTime, setReminderTime] = useState("09:00");
   const [existingReminderId, setExistingReminderId] = useState(null);
 
-  // Load existing reminder when editing
   React.useEffect(() => {
     if (appointment?.id && open) {
       api.entities.Reminder.filter({
@@ -64,7 +63,7 @@ export default function AppointmentForm({ open, onClose, petId, pets, appointmen
           setReminderDueDate(reminder.due_date);
           setReminderTime(reminder.due_time || "09:00");
         }
-      });
+      }).catch(() => {});
     }
   }, [appointment?.id, open]);
 
@@ -72,28 +71,23 @@ export default function AppointmentForm({ open, onClose, petId, pets, appointmen
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!form.title || !form.date || !form.pet_id) {
       alert("Please fill in all required fields (Pet, Title, Date)");
       return;
     }
-
     setSaving(true);
     try {
       const data = { ...form };
       if (!data.pet_id && petId) data.pet_id = petId;
 
       let savedId = appointment?.id;
-
       if (appointment?.id) {
         await api.entities.Appointment.update(appointment.id, data);
       } else {
-        // ✅ FIX: capture the new doc id so we can link the reminder
         const created = await api.entities.Appointment.create(data);
         savedId = created.id;
       }
 
-      // ✅ FIX: Handle reminder for BOTH create and edit (was only edit before)
       if (createReminder && reminderDueDate && data.pet_id && savedId) {
         const reminderData = {
           pet_id: data.pet_id,
@@ -109,7 +103,6 @@ export default function AppointmentForm({ open, onClose, petId, pets, appointmen
           related_entity_type: 'appointment',
           related_entity_id: savedId,
         };
-
         if (existingReminderId) {
           await api.entities.Reminder.update(existingReminderId, reminderData);
         } else {
@@ -209,21 +202,11 @@ export default function AppointmentForm({ open, onClose, petId, pets, appointmen
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Reminder Date *</Label>
-                <Input
-                  type="date"
-                  value={reminderDueDate}
-                  onChange={(e) => setReminderDueDate(e.target.value)}
-                  required={createReminder}
-                />
+                <Input type="date" value={reminderDueDate} onChange={(e) => setReminderDueDate(e.target.value)} required={createReminder} />
               </div>
               <div className="space-y-2">
                 <Label>Time of Day *</Label>
-                <Input
-                  type="time"
-                  value={reminderTime}
-                  onChange={(e) => setReminderTime(e.target.value)}
-                  required={createReminder}
-                />
+                <Input type="time" value={reminderTime} onChange={(e) => setReminderTime(e.target.value)} required={createReminder} />
               </div>
             </div>
           )}
@@ -238,22 +221,13 @@ export default function AppointmentForm({ open, onClose, petId, pets, appointmen
                 </span>
               </Label>
               <Select
-                value={
-                  manualEntry ? "manual" :
-                  veterinarians.find(
-                    (vet) => vet.veterinarian_name === form.vet_name && vet.clinic_name === form.clinic_name
-                  )?.id || ""
-                }
+                value={manualEntry ? "manual" : veterinarians.find(v => v.veterinarian_name === form.vet_name && v.clinic_name === form.clinic_name)?.id || ""}
                 onValueChange={handleVetSelect}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a veterinarian or enter manually" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select a veterinarian or enter manually" /></SelectTrigger>
                 <SelectContent>
                   {veterinarians.map((vet) => (
-                    <SelectItem key={vet.id} value={vet.id}>
-                      Dr. {vet.veterinarian_name} - {vet.clinic_name}
-                    </SelectItem>
+                    <SelectItem key={vet.id} value={vet.id}>Dr. {vet.veterinarian_name} - {vet.clinic_name}</SelectItem>
                   ))}
                   <SelectItem value="manual">Enter manually</SelectItem>
                 </SelectContent>
@@ -264,42 +238,22 @@ export default function AppointmentForm({ open, onClose, petId, pets, appointmen
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Vet Name</Label>
-              <Input
-                value={form.vet_name}
-                onChange={(e) => handleChange("vet_name", e.target.value)}
-                readOnly={!manualEntry && veterinarians.length > 0 && !!form.vet_name}
-                className={!manualEntry && veterinarians.length > 0 && form.vet_name ? "bg-slate-50" : ""}
-              />
+              <Input value={form.vet_name} onChange={(e) => handleChange("vet_name", e.target.value)} readOnly={!manualEntry && veterinarians.length > 0 && !!form.vet_name} className={!manualEntry && veterinarians.length > 0 && form.vet_name ? "bg-slate-50" : ""} />
             </div>
             <div className="space-y-2">
               <Label>Clinic Name</Label>
-              <Input
-                value={form.clinic_name}
-                onChange={(e) => handleChange("clinic_name", e.target.value)}
-                readOnly={!manualEntry && veterinarians.length > 0 && !!form.clinic_name}
-                className={!manualEntry && veterinarians.length > 0 && form.clinic_name ? "bg-slate-50" : ""}
-              />
+              <Input value={form.clinic_name} onChange={(e) => handleChange("clinic_name", e.target.value)} readOnly={!manualEntry && veterinarians.length > 0 && !!form.clinic_name} className={!manualEntry && veterinarians.length > 0 && form.clinic_name ? "bg-slate-50" : ""} />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Clinic Address</Label>
-              <Input
-                value={form.clinic_address}
-                onChange={(e) => handleChange("clinic_address", e.target.value)}
-                readOnly={!manualEntry && veterinarians.length > 0 && !!form.clinic_address}
-                className={!manualEntry && veterinarians.length > 0 && form.clinic_address ? "bg-slate-50" : ""}
-              />
+              <Input value={form.clinic_address} onChange={(e) => handleChange("clinic_address", e.target.value)} readOnly={!manualEntry && veterinarians.length > 0 && !!form.clinic_address} className={!manualEntry && veterinarians.length > 0 && form.clinic_address ? "bg-slate-50" : ""} />
             </div>
             <div className="space-y-2">
               <Label>Clinic Phone</Label>
-              <Input
-                value={form.clinic_phone}
-                onChange={(e) => handleChange("clinic_phone", e.target.value)}
-                readOnly={!manualEntry && veterinarians.length > 0 && !!form.clinic_phone}
-                className={!manualEntry && veterinarians.length > 0 && form.clinic_phone ? "bg-slate-50" : ""}
-              />
+              <Input value={form.clinic_phone} onChange={(e) => handleChange("clinic_phone", e.target.value)} readOnly={!manualEntry && veterinarians.length > 0 && !!form.clinic_phone} className={!manualEntry && veterinarians.length > 0 && form.clinic_phone ? "bg-slate-50" : ""} />
             </div>
           </div>
 

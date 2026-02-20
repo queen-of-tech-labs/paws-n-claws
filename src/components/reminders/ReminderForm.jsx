@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, Upload, Loader2 } from "lucide-react";
-import api from '@/api/firebaseClient';
+import api, { fbStorage } from '@/api/firebaseClient';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export default function ReminderForm({ pets, onSubmit, isLoading, initialReminder, existingPetId }) {
   const [formData, setFormData] = useState({
@@ -54,7 +55,9 @@ export default function ReminderForm({ pets, onSubmit, isLoading, initialReminde
 
     setFileUploadLoading(true);
     try {
-      const { file_url } = await api.integrations.Core.UploadFile({ file });
+      const storageRef = ref(fbStorage, `reminder-files/${Date.now()}_${file.name}`);
+      const uploadResult = await uploadBytes(storageRef, file);
+      const file_url = await getDownloadURL(uploadResult.ref);
       setFormData(prev => ({
         ...prev,
         file_urls: [...prev.file_urls, file_url],
