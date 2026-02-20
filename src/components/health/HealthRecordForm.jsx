@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import api from '@/api/firebaseClient';
+import api, { fbStorage } from '@/api/firebaseClient';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,24 +48,36 @@ export default function HealthRecordForm({ open, onClose, petId, pets, record, o
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    const { file_url } = await api.integrations.Core.UploadFile({ file });
-    handleChange("file_url", file_url);
+    try {
+      const storageRef = ref(fbStorage, `health-records/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      handleChange("file_url", url);
+    } catch (err) {
+      console.error("File upload error:", err);
+      alert("Failed to upload file. Please try again.");
+    }
     setUploading(false);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const data = { ...form };
-    if (!data.pet_id && petId) data.pet_id = petId;
+    try {
+      const data = { ...form };
+      if (!data.pet_id && petId) data.pet_id = petId;
 
-    if (record?.id) {
-      await api.entities.HealthRecord.update(record.id, data);
-    } else {
-      await api.entities.HealthRecord.create(data);
+      if (record?.id) {
+        await api.entities.HealthRecord.update(record.id, data);
+      } else {
+        await api.entities.HealthRecord.create(data);
+      }
+      onSaved();
+    } catch (err) {
+      console.error("Save error:", err);
+      alert("Failed to save record. Please try again.");
     }
     setSaving(false);
-    onSaved();
   };
 
   const handleVetSelect = (vetId) => {

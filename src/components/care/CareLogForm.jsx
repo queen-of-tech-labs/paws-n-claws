@@ -22,24 +22,27 @@ const CARE_TYPES = [
 
 function convertToUTC(localTime) {
   if (!localTime) return "00:00";
-  
-  // Create a date object with the local time
   const now = new Date();
   const [hours, minutes] = localTime.split(':').map(Number);
   const localDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
-  
-  // Convert to UTC
   const utcHours = String(localDate.getUTCHours()).padStart(2, '0');
   const utcMinutes = String(localDate.getUTCMinutes()).padStart(2, '0');
-  
   return `${utcHours}:${utcMinutes}`;
 }
 
+const typeMapping = {
+  vaccination: 'vaccination',
+  medication: 'medication',
+  weight: 'checkup',
+  grooming: 'grooming',
+  training: 'other',
+  milestone: 'other',
+  birthday: 'birthday',
+};
+
 export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved, user }) {
   const [form, setForm] = useState(() => {
-    if (entry) {
-      return entry;
-    }
+    if (entry) return entry;
     return {
       pet_id: petId || "",
       type: "vaccination",
@@ -86,82 +89,73 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const data = { ...form };
-    
-    // Fix timezone issue: keep dates as-is without conversion
-    // The date input already provides YYYY-MM-DD format which is stored correctly
-    
-    // Don't set next_due_date automatically anymore
-    delete data.next_due_date;
-    
-    // Clean up fields based on type
-    if (form.type !== "weight") {
-      delete data.weight_value;
-    } else if (data.weight_value) {
-      data.weight_value = parseFloat(data.weight_value);
-    } else {
-      delete data.weight_value;
-    }
-    
-    if (form.type !== "medication") {
-      delete data.medication_dosage;
-      delete data.medication_frequency;
-      delete data.medication_times;
-      delete data.recurrence;
-      delete data.custom_recurrence_interval;
-      delete data.custom_recurrence_unit;
-      delete data.reminder_interval_days;
-    } else {
-      // Keep medication fields, filter empty times
-      data.medication_times = (data.medication_times || []).filter(t => t);
-    }
-    
-    if (!data.pet_id && petId) data.pet_id = petId;
+    try {
+      const data = { ...form };
 
-    if (entry?.id) {
-      await api.entities.CareLog.update(entry.id, data);
-    } else {
-      await api.entities.CareLog.create(data);
-    }
+      delete data.next_due_date;
 
-    const typeMapping = {
-      vaccination: 'vaccination',
-      medication: 'medication',
-      weight: 'checkup',
-      grooming: 'grooming',
-      training: 'other',
-      milestone: 'other',
-      birthday: 'birthday',
-    };
-
-    // Handle reminder when editing
-    if (entry?.id && createReminder && reminderDueDate) {
-      const reminderData = {
-        pet_id: data.pet_id,
-        type: typeMapping[data.type] || 'other',
-        title: `${data.title} - Reminder`,
-        description: `Reminder for: ${data.title}`,
-        due_date: reminderDueDate,
-        due_time: convertToUTC(reminderTime),
-        notification_sent: false,
-        status: 'pending',
-        priority: 'medium',
-        medication_times: reminderTime ? [reminderTime] : [],
-        related_entity_type: 'care_log',
-        related_entity_id: entry.id,
-      };
-
-      if (existingReminderId) {
-        // Update existing reminder
-        await api.entities.Reminder.update(existingReminderId, reminderData);
+      if (form.type !== "weight") {
+        delete data.weight_value;
+      } else if (data.weight_value) {
+        data.weight_value = parseFloat(data.weight_value);
       } else {
-        // Create new reminder
-        await api.entities.Reminder.create(reminderData);
+        delete data.weight_value;
       }
-    }
 
+      if (form.type !== "medication") {
+        delete data.medication_dosage;
+        delete data.medication_frequency;
+        delete data.medication_times;
+        delete data.recurrence;
+        delete data.custom_recurrence_interval;
+        delete data.custom_recurrence_unit;
+        delete data.reminder_interval_days;
+      } else {
+        data.medication_times = (data.medication_times || []).filter(t => t);
+      }
+
+      if (!data.pet_id && petId) data.pet_id = petId;
+
+      let savedId = entry?.id;
+
+      if (entry?.id) {
+        await api.entities.CareLog.update(entry.id, data);
+      } else {
+        // ✅ FIX: capture new doc id so reminder can be linked
+        const created = await api.entities.CareLog.create(data);
+        savedId = created.id;
+      }
+
+      // ✅ FIX: Handle reminder for BOTH create and edit (was only edit before)
+      if (createReminder && reminderDueDate && savedId) {
+        const reminderData = {
+          pet_id: data.pet_id,
+          type: typeMapping[data.type] || 'other',
+          title: `${data.title} - Reminder`,
+          description: `Reminder for: ${data.title}`,
+          due_date: reminderDueDate,
+          due_time: convertToUTC(reminderTime),
+          notification_sent: false,
+          status: 'pending',
+          priority: 'medium',
+          medication_times: reminderTime ? [reminderTime] : [],
+          related_entity_type: 'care_log',
+          related_entity_id: savedId,
+        };
+
+        if (existingReminderId) {
+          await api.entities.Reminder.update(existingReminderId, reminderData);
+        } else {
+          await api.entities.Reminder.create(reminderData);
+        }
+      }
+
+      onSaved();
+    } catch (err) {
+      console.error("Save error:", err);
+      alert("Failed to save entry. Please try again.");
+    }
     setSaving(false);
-    onSaved();
   };
 
   return (
@@ -224,14 +218,14 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
           </div>
 
           <div className="flex items-center gap-2">
-            <Checkbox 
-              id="create-reminder" 
-              checked={createReminder} 
+            <Checkbox
+              id="create-reminder"
+              checked={createReminder}
               onCheckedChange={setCreateReminder}
               disabled={!user?.premium_subscriber && user?.role !== 'admin'}
             />
-            <Label 
-              htmlFor="create-reminder" 
+            <Label
+              htmlFor="create-reminder"
               className={`font-normal ${!user?.premium_subscriber && user?.role !== 'admin' ? 'text-gray-400 cursor-not-allowed' : 'cursor-pointer'}`}
             >
               Create a reminder for this entry
@@ -245,26 +239,24 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
           </div>
 
           {createReminder && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Reminder Due Date *</Label>
-                  <Input 
-                    type="date" 
-                    value={reminderDueDate} 
-                    onChange={(e) => setReminderDueDate(e.target.value)} 
-                    required={createReminder}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Time of Day *</Label>
-                  <Input 
-                    type="time" 
-                    value={reminderTime} 
-                    onChange={(e) => setReminderTime(e.target.value)} 
-                    required={createReminder}
-                  />
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Reminder Date *</Label>
+                <Input
+                  type="date"
+                  value={reminderDueDate}
+                  onChange={(e) => setReminderDueDate(e.target.value)}
+                  required={createReminder}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Time of Day *</Label>
+                <Input
+                  type="time"
+                  value={reminderTime}
+                  onChange={(e) => setReminderTime(e.target.value)}
+                  required={createReminder}
+                />
               </div>
             </div>
           )}
@@ -277,103 +269,103 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
           )}
 
           {form.type === "medication" && (
-           <div className="space-y-4">
-             <div className="grid grid-cols-2 gap-4">
-               <div className="space-y-2">
-                 <Label>Dosage</Label>
-                 <Input value={form.medication_dosage} onChange={(e) => handleChange("medication_dosage", e.target.value)} placeholder="e.g. 10mg" />
-               </div>
-               <div className="space-y-2">
-                 <Label>Frequency</Label>
-                 <Input value={form.medication_frequency} onChange={(e) => handleChange("medication_frequency", e.target.value)} placeholder="e.g. Twice daily" />
-               </div>
-             </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Dosage</Label>
+                  <Input value={form.medication_dosage} onChange={(e) => handleChange("medication_dosage", e.target.value)} placeholder="e.g. 10mg" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Frequency</Label>
+                  <Input value={form.medication_frequency} onChange={(e) => handleChange("medication_frequency", e.target.value)} placeholder="e.g. Twice daily" />
+                </div>
+              </div>
 
-             <div className="space-y-2">
-               <Label>Recurrence</Label>
-               <Select value={form.recurrence} onValueChange={(v) => handleChange("recurrence", v)}>
-                 <SelectTrigger><SelectValue /></SelectTrigger>
-                 <SelectContent>
-                   <SelectItem value="none">One-time</SelectItem>
-                   <SelectItem value="daily">Daily</SelectItem>
-                   <SelectItem value="2x-daily">2x Daily</SelectItem>
-                   <SelectItem value="weekly">Weekly</SelectItem>
-                   <SelectItem value="monthly">Monthly</SelectItem>
-                   <SelectItem value="quarterly">Every 3 months</SelectItem>
-                   <SelectItem value="semi-annual">Every 6 months</SelectItem>
-                   <SelectItem value="annual">Yearly</SelectItem>
-                   <SelectItem value="custom">Custom Interval</SelectItem>
-                 </SelectContent>
-               </Select>
-             </div>
+              <div className="space-y-2">
+                <Label>Recurrence</Label>
+                <Select value={form.recurrence} onValueChange={(v) => handleChange("recurrence", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">One-time</SelectItem>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="2x-daily">2x Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="quarterly">Every 3 months</SelectItem>
+                    <SelectItem value="semi-annual">Every 6 months</SelectItem>
+                    <SelectItem value="annual">Yearly</SelectItem>
+                    <SelectItem value="custom">Custom Interval</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-             {form.recurrence === "custom" && (
-               <div className="grid grid-cols-2 gap-4">
-                 <div className="space-y-2">
-                   <Label>Every (interval)</Label>
-                   <Input type="number" min="1" max="365" value={form.custom_recurrence_interval} onChange={(e) => handleChange("custom_recurrence_interval", e.target.value)} placeholder="e.g. 5" />
-                 </div>
-                 <div className="space-y-2">
-                   <Label>Unit</Label>
-                   <Select value={form.custom_recurrence_unit} onValueChange={(v) => handleChange("custom_recurrence_unit", v)}>
-                     <SelectTrigger><SelectValue /></SelectTrigger>
-                     <SelectContent>
-                       <SelectItem value="days">Days</SelectItem>
-                       <SelectItem value="weeks">Weeks</SelectItem>
-                       <SelectItem value="months">Months</SelectItem>
-                     </SelectContent>
-                   </Select>
-                 </div>
-               </div>
-             )}
+              {form.recurrence === "custom" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Every (interval)</Label>
+                    <Input type="number" min="1" max="365" value={form.custom_recurrence_interval} onChange={(e) => handleChange("custom_recurrence_interval", e.target.value)} placeholder="e.g. 5" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Unit</Label>
+                    <Select value={form.custom_recurrence_unit} onValueChange={(v) => handleChange("custom_recurrence_unit", v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="days">Days</SelectItem>
+                        <SelectItem value="weeks">Weeks</SelectItem>
+                        <SelectItem value="months">Months</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
 
-             <div className="space-y-2">
-               <Label>Medication Times</Label>
-               <div className="space-y-2">
-                 {form.medication_times && form.medication_times.map((time, idx) => (
-                   <div key={idx} className="flex gap-2">
-                     <Input
-                       type="time"
-                       value={time}
-                       onChange={(e) => {
-                         const newTimes = [...form.medication_times];
-                         newTimes[idx] = e.target.value;
-                         handleChange("medication_times", newTimes);
-                       }}
-                       className="flex-1"
-                     />
-                     <Button
-                       type="button"
-                       variant="outline"
-                       size="sm"
-                       onClick={() => {
-                         const newTimes = form.medication_times.filter((_, i) => i !== idx);
-                         handleChange("medication_times", newTimes);
-                       }}
-                     >
-                       Remove
-                     </Button>
-                   </div>
-                 ))}
-                 <Button
-                   type="button"
-                   variant="outline"
-                   size="sm"
-                   className="w-full"
-                   onClick={() => handleChange("medication_times", [...(form.medication_times || []), ""])}
-                 >
-                   + Add Time
-                 </Button>
-               </div>
-             </div>
+              <div className="space-y-2">
+                <Label>Medication Times</Label>
+                <div className="space-y-2">
+                  {form.medication_times && form.medication_times.map((time, idx) => (
+                    <div key={idx} className="flex gap-2">
+                      <Input
+                        type="time"
+                        value={time}
+                        onChange={(e) => {
+                          const newTimes = [...form.medication_times];
+                          newTimes[idx] = e.target.value;
+                          handleChange("medication_times", newTimes);
+                        }}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const newTimes = form.medication_times.filter((_, i) => i !== idx);
+                          handleChange("medication_times", newTimes);
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => handleChange("medication_times", [...(form.medication_times || []), ""])}
+                  >
+                    + Add Time
+                  </Button>
+                </div>
+              </div>
 
-             {(form.recurrence === "daily" || form.recurrence === "2x-daily") && (
-               <div className="space-y-2">
-                 <Label>Remind me before dose (minutes)</Label>
-                 <Input type="number" min="0" max="30" value={form.reminder_interval_days} onChange={(e) => handleChange("reminder_interval_days", parseInt(e.target.value) || 0)} placeholder="e.g. 15" />
-               </div>
-             )}
-           </div>
+              {(form.recurrence === "daily" || form.recurrence === "2x-daily") && (
+                <div className="space-y-2">
+                  <Label>Remind me before dose (minutes)</Label>
+                  <Input type="number" min="0" max="30" value={form.reminder_interval_days} onChange={(e) => handleChange("reminder_interval_days", parseInt(e.target.value) || 0)} placeholder="e.g. 15" />
+                </div>
+              )}
+            </div>
           )}
 
           <div className="space-y-2">

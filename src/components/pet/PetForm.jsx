@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import api from '@/api/firebaseClient';
+import api, { fbStorage } from '@/api/firebaseClient';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,28 +28,40 @@ export default function PetForm({ open, onClose, pet, onSaved }) {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    const { file_url } = await api.integrations.Core.UploadFile({ file });
-    handleChange("photo_url", file_url);
+    try {
+      const storageRef = ref(fbStorage, `pet-photos/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      handleChange("photo_url", url);
+    } catch (err) {
+      console.error("Photo upload error:", err);
+      alert("Failed to upload photo. Please try again.");
+    }
     setUploading(false);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const data = { ...form };
-    if (data.weight) {
-      data.weight = parseFloat(data.weight);
-    } else {
-      delete data.weight;
-    }
+    try {
+      const data = { ...form };
+      if (data.weight) {
+        data.weight = parseFloat(data.weight);
+      } else {
+        delete data.weight;
+      }
 
-    if (pet?.id) {
-      await api.entities.Pet.update(pet.id, data);
-    } else {
-      await api.entities.Pet.create(data);
+      if (pet?.id) {
+        await api.entities.Pet.update(pet.id, data);
+      } else {
+        await api.entities.Pet.create(data);
+      }
+      onSaved();
+    } catch (err) {
+      console.error("Save error:", err);
+      alert("Failed to save pet. Please try again.");
     }
     setSaving(false);
-    onSaved();
   };
 
   return (
