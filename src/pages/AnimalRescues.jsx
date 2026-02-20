@@ -3,29 +3,28 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MapPin, Search, Phone, Globe, Heart, HandHeart,
-  ExternalLink, Loader2, Navigation, Users, Plus, Star, AlertTriangle
+  Loader2, Navigation, Users, Plus, Star, AlertTriangle
 } from "lucide-react";
 import { motion } from "framer-motion";
 import SuggestRescueForm from "../components/rescues/SuggestRescueForm";
 import GoogleMap from "@/components/GoogleMap";
 import api from "@/api/firebaseClient";
 
-
 async function geocodeLocation(locationStr) {
   const res = await fetch(`/api/geocode?address=${encodeURIComponent(locationStr)}`);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Location not found. Please try a different address or ZIP code.");
   return { lat: data.lat, lng: data.lng };
+}
 
 async function searchRescues(lat, lng) {
   const res = await fetch(`/api/rescue-search?lat=${lat}&lng=${lng}`);
   if (!res.ok) throw new Error("Failed to fetch rescue listings.");
   const data = await res.json();
   return data.results || [];
-
 }
 
 export default function AnimalRescues() {
@@ -33,9 +32,10 @@ export default function AnimalRescues() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [mapCenter, setMapCenter] = useState([40.7128, -74.006]);
+  const [mapCenter, setMapCenter] = useState({ lat: 40.7128, lng: -74.006 });
   const [activeTab, setActiveTab] = useState("all");
   const [showSuggestForm, setShowSuggestForm] = useState(false);
+  const [expandedDescriptions, setExpandedDescriptions] = useState({});
 
   const handleSearch = async () => {
     if (!location.trim()) {
@@ -47,18 +47,15 @@ export default function AnimalRescues() {
     setResults([]);
 
     try {
-      // Geocode location and fetch approved suggestions in parallel
       const [{ lat, lng }, approvedSuggestions] = await Promise.all([
         geocodeLocation(location),
         api.entities.RescueSuggestion.filter({ status: "approved" }),
       ]);
 
-      setMapCenter([lat, lng]);
+      setMapCenter({ lat, lng });
 
-      // Fetch Places results
       const placesResults = await searchRescues(lat, lng);
 
-      // Convert approved user suggestions to rescue format
       const suggestionsAsRescues = approvedSuggestions.map((s) => ({
         name: s.name,
         type: "rescue",
@@ -99,9 +96,19 @@ export default function AnimalRescues() {
           return r.type === activeTab;
         });
 
+  const mapMarkers = filtered
+    .filter((r) => r.lat && r.lng)
+    .map((r) => ({
+      lat: r.lat,
+      lng: r.lng,
+      title: r.name,
+      subtitle: r.address,
+      rating: r.rating,
+      review_count: r.review_count,
+    }));
+
   return (
     <div className="overflow-x-hidden">
-      {/* Hero Image */}
       <div className="w-full h-48 overflow-hidden relative mb-6">
         <img
           src="https://images.unsplash.com/photo-1574158622682-e40e69881006?w=1200&h=400&fit=crop"
@@ -119,7 +126,6 @@ export default function AnimalRescues() {
           </p>
         </div>
 
-        {/* Search */}
         <Card className="border-orange-100 mb-6">
           <CardContent className="p-4">
             <div className="flex gap-3">
@@ -138,11 +144,7 @@ export default function AnimalRescues() {
                 disabled={loading}
                 className="bg-[#F97066] hover:bg-[#E5524A] text-white"
               >
-                {loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Search className="w-4 h-4" />
-                )}
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                 <span className="ml-1.5 hidden sm:inline">Search</span>
               </Button>
             </div>
@@ -167,19 +169,11 @@ export default function AnimalRescues() {
         )}
 
         <div className="grid lg:grid-cols-2 gap-6">
-          {/* Map */}
           <div className="space-y-3 order-2 lg:order-1">
             <Card className="border-orange-100 overflow-hidden">
               <GoogleMap
-                center={{ lat: mapCenter[0], lng: mapCenter[1] }}
-                markers={filtered.filter(r => r.lat && r.lng).map(r => ({
-                  lat: r.lat,
-                  lng: r.lng,
-                  title: r.name,
-                  subtitle: r.address,
-                  rating: r.rating,
-                  review_count: r.review_count,
-                }))}
+                center={mapCenter}
+                markers={mapMarkers}
                 height="400px"
               />
             </Card>
@@ -191,13 +185,11 @@ export default function AnimalRescues() {
               <Plus className="w-4 h-4 mr-2" />
               Suggest a Rescue Organization
             </Button>
-
             {showSuggestForm && (
               <SuggestRescueForm onClose={() => setShowSuggestForm(false)} />
             )}
           </div>
 
-          {/* Results */}
           <div className="space-y-3 order-1 lg:order-2">
             {loading ? (
               <div className="flex items-center justify-center py-16">
@@ -214,9 +206,7 @@ export default function AnimalRescues() {
                 </p>
               </div>
             ) : filtered.length === 0 ? (
-              <p className="text-center py-8 text-sm text-[#6B5B50]/50">
-                No results for this filter
-              </p>
+              <p className="text-center py-8 text-sm text-[#6B5B50]/50">No results for this filter</p>
             ) : (
               filtered.map((rescue, i) => (
                 <motion.div
@@ -238,9 +228,7 @@ export default function AnimalRescues() {
                               {typeLabels[rescue.type] || rescue.type}
                             </Badge>
                             {rescue.isUserSuggestion && (
-                              <Badge className="bg-blue-100 text-blue-700 border-0 text-xs">
-                                Community Pick
-                              </Badge>
+                              <Badge className="bg-blue-100 text-blue-700 border-0 text-xs">Community Pick</Badge>
                             )}
                           </div>
                           <p className="text-sm text-[#6B5B50]/70 mt-1 flex items-start gap-1">
@@ -266,12 +254,7 @@ export default function AnimalRescues() {
                               </p>
                               {rescue.description.length > 100 && (
                                 <button
-                                  onClick={() =>
-                                    setExpandedDescriptions((prev) => ({
-                                      ...prev,
-                                      [i]: !prev[i],
-                                    }))
-                                  }
+                                  onClick={() => setExpandedDescriptions((prev) => ({ ...prev, [i]: !prev[i] }))}
                                   className="text-xs text-[#F97066] hover:underline mt-1"
                                 >
                                   {expandedDescriptions[i] ? "See less" : "See more"}
@@ -282,9 +265,7 @@ export default function AnimalRescues() {
                           {rescue.animals && rescue.animals.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-2">
                               {rescue.animals.map((a, j) => (
-                                <Badge key={j} variant="secondary" className="bg-green-50 text-green-700 text-xs border-0">
-                                  {a}
-                                </Badge>
+                                <Badge key={j} variant="secondary" className="bg-green-50 text-green-700 text-xs border-0">{a}</Badge>
                               ))}
                             </div>
                           )}
@@ -309,33 +290,21 @@ export default function AnimalRescues() {
                               </a>
                             )}
                             {rescue.website && (
-                              <a
-                                href={rescue.website.startsWith("http") ? rescue.website : `https://${rescue.website}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
+                              <a href={rescue.website.startsWith("http") ? rescue.website : `https://${rescue.website}`} target="_blank" rel="noopener noreferrer">
                                 <Button variant="outline" size="sm" className="text-xs">
                                   <Globe className="w-3 h-3 mr-1" /> Website
                                 </Button>
                               </a>
                             )}
                             {rescue.place_id && (
-                              <a
-                                href={`https://www.google.com/maps/place/?q=place_id:${rescue.place_id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
+                              <a href={`https://www.google.com/maps/place/?q=place_id:${rescue.place_id}`} target="_blank" rel="noopener noreferrer">
                                 <Button variant="outline" size="sm" className="text-xs">
-                                  <Globe className="w-3 h-3 mr-1" /> View on Google Maps
+                                  <Globe className="w-3 h-3 mr-1" /> Google Maps
                                 </Button>
                               </a>
                             )}
                             {rescue.address && (
-                              <a
-                                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(rescue.address)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
+                              <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(rescue.address)}`} target="_blank" rel="noopener noreferrer">
                                 <Button variant="outline" size="sm" className="text-xs">
                                   <Navigation className="w-3 h-3 mr-1" /> Directions
                                 </Button>
