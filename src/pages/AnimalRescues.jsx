@@ -26,6 +26,8 @@ async function searchRescues(lat, lng) {
   const data = await res.json();
   return data.results || [];
 
+}
+
 export default function AnimalRescues() {
   const [location, setLocation] = useState("");
   const [results, setResults] = useState([]);
