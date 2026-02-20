@@ -57,6 +57,20 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+const AdminRoute = ({ children }) => {
+  const { isAuthenticated, isLoadingAuth, user } = useAuth();
+  if (isLoadingAuth) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-slate-950">
+        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
+      </div>
+    );
+  }
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (user?.role !== 'admin') return <Navigate to="/dashboard" replace />;
+  return children;
+};
+
 const AppRoutes = () => {
   const { isLoadingAuth } = useAuth();
 
@@ -96,10 +110,10 @@ const AppRoutes = () => {
       <Route path="/account" element={<ProtectedRoute><Layout currentPageName="Account"><Account /></Layout></ProtectedRoute>} />
       <Route path="/notifications" element={<ProtectedRoute><Layout currentPageName="NotificationPreferences"><NotificationPreferences /></Layout></ProtectedRoute>} />
       <Route path="/feedback" element={<ProtectedRoute><Layout currentPageName="Feedback"><Feedback /></Layout></ProtectedRoute>} />
-      <Route path="/admin/users" element={<ProtectedRoute><Layout currentPageName="AdminUsers"><AdminUsers /></Layout></ProtectedRoute>} />
-      <Route path="/admin/user" element={<ProtectedRoute><Layout currentPageName="AdminUserDetail"><AdminUserDetail /></Layout></ProtectedRoute>} />
-      <Route path="/admin/rescue-suggestions" element={<ProtectedRoute><Layout currentPageName="AdminRescueSuggestions"><AdminRescueSuggestions /></Layout></ProtectedRoute>} />
-      <Route path="/admin/guides" element={<ProtectedRoute><Layout currentPageName="AdminGuideManagement"><AdminGuideManagement /></Layout></ProtectedRoute>} />
+      <Route path="/admin/users" element={<AdminRoute><Layout currentPageName="AdminUsers"><AdminUsers /></Layout></AdminRoute>} />
+      <Route path="/admin/user" element={<AdminRoute><Layout currentPageName="AdminUserDetail"><AdminUserDetail /></Layout></AdminRoute>} />
+      <Route path="/admin/rescue-suggestions" element={<AdminRoute><Layout currentPageName="AdminRescueSuggestions"><AdminRescueSuggestions /></Layout></AdminRoute>} />
+      <Route path="/admin/guides" element={<AdminRoute><Layout currentPageName="AdminGuideManagement"><AdminGuideManagement /></Layout></AdminRoute>} />
 
       <Route path="*" element={<PageNotFound />} />
     </Routes>
