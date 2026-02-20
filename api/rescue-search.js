@@ -1,7 +1,7 @@
 /**
  * Vercel Serverless Function: /api/rescue-search
  * Searches for animal rescues, shelters, and adoption centers
- * using Google Places API (New) Nearby Search.
+ * using Google Places API (New) Text Search.
  */
 
 export default async function handler(req, res) {
@@ -20,19 +20,19 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Google Places API key not configured on server' });
   }
 
-  const url = 'https://places.googleapis.com/v1/places:searchNearby';
+  // Use Text Search which is more flexible than Nearby Search for shelters
+  const url = 'https://places.googleapis.com/v1/places:searchText';
 
-  // Search for animal shelters and related organizations
   const body = {
-    includedTypes: ['animal_shelter'],
+    textQuery: 'animal rescue shelter adoption',
     maxResultCount: 20,
-    locationRestriction: {
+    locationBias: {
       circle: {
         center: {
           latitude: parseFloat(lat),
           longitude: parseFloat(lng),
         },
-        radius: 25000.0, // 25km radius for rescues (wider than vets)
+        radius: 25000.0,
       },
     },
   };
@@ -43,7 +43,7 @@ export default async function handler(req, res) {
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': apiKey,
-        'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.currentOpeningHours,places.id,places.nationalPhoneNumber,places.websiteUri,places.types',
+        'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.currentOpeningHours,places.id,places.nationalPhoneNumber,places.websiteUri',
       },
       body: JSON.stringify(body),
     });
@@ -63,14 +63,11 @@ export default async function handler(req, res) {
     // Normalize results
     const results = (data.places || []).map((place) => {
       const name = place.displayName?.text?.toLowerCase() || '';
-      const types = place.types || [];
 
-      // Determine rescue type from name and place types
       let type = 'shelter';
       if (name.includes('rescue')) type = 'rescue';
       else if (name.includes('adoption') || name.includes('adopt')) type = 'adoption_center';
       else if (name.includes('wildlife') || name.includes('rehab')) type = 'wildlife_rehab';
-      else if (types.includes('animal_shelter')) type = 'shelter';
 
       return {
         name: place.displayName?.text,
@@ -81,7 +78,7 @@ export default async function handler(req, res) {
         description: '',
         animals: [],
         accepts_volunteers: false,
-        accepts_donations: true, // Most rescues accept donations
+        accepts_donations: true,
         donation_link: place.websiteUri || '',
         lat: place.location?.latitude,
         lng: place.location?.longitude,
