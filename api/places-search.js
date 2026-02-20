@@ -1,6 +1,6 @@
 /**
  * Vercel Serverless Function: /api/places-search
- * Proxies Google Places Nearby Search to avoid CORS issues in the browser.
+ * Proxies Google Places API (New) Nearby Search to avoid CORS issues in the browser.
  */
 
 export default async function handler(req, res) {
@@ -19,32 +19,70 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Google Places API key not configured on server' });
   }
 
-  const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=10000&type=veterinary_care&keyword=${encodeURIComponent(query || 'veterinarian')}&key=${apiKey}`;
+  // Use the new Places API (New) Nearby Search endpoint
+  const url = 'https://places.googleapis.com/v1/places:searchNearby';
 
-  console.log('Places API request URL (no key):', url.replace(apiKey, 'REDACTED'));
+  const body = {
+    includedTypes: ['veterinary_care'],
+    maxResultCount: 20,
+    locationRestriction: {
+      circle: {
+        center: {
+          latitude: parseFloat(lat),
+          longitude: parseFloat(lng),
+        },
+        radius: 10000.0,
+      },
+    },
+    ...(query && { textQuery: query }),
+  };
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.currentOpeningHours,places.id,places.nationalPhoneNumber,places.websiteUri',
+      },
+      body: JSON.stringify(body),
+    });
+
     const data = await response.json();
 
-    console.log('Places API status:', data.status);
-    console.log('Places API error_message:', data.error_message || 'none');
-    console.log('Places API results count:', data.results?.length || 0);
+    console.log('Places API (New) status:', response.status);
+    console.log('Places API (New) error:', data.error || 'none');
+    console.log('Places API (New) results count:', data.places?.length || 0);
 
-    if (data.status === 'ZERO_RESULTS') {
-      return res.status(200).json({ results: [] });
-    }
-
-    if (data.status !== 'OK') {
+    if (!response.ok) {
       return res.status(500).json({
-        error: data.error_message || `Places API error: ${data.status}`,
-        status: data.status
+        error: data.error?.message || `Places API error: ${response.status}`,
       });
     }
 
-    return res.status(200).json({ results: data.results || [] });
+    // Normalize results to match the shape the frontend expects
+    const results = (data.places || []).map((place) => ({
+      name: place.displayName?.text,
+      vicinity: place.formattedAddress,
+      rating: place.rating,
+      user_ratings_total: place.userRatingCount,
+      geometry: {
+        location: {
+          lat: place.location?.latitude,
+          lng: place.location?.longitude,
+        },
+      },
+      opening_hours: place.currentOpeningHours
+        ? { open_now: place.currentOpeningHours.openNow }
+        : undefined,
+      place_id: place.id,
+      phone: place.nationalPhoneNumber,
+      website: place.websiteUri,
+    }));
+
+    return res.status(200).json({ results });
   } catch (err) {
-    console.error('Failed to fetch from Places API:', err);
+    console.error('Failed to fetch from Places API (New):', err);
     return res.status(500).json({ error: err.message });
   }
 }
