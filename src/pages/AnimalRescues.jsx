@@ -13,26 +13,21 @@ import SuggestRescueForm from "../components/rescues/SuggestRescueForm";
 import GoogleMap from "@/components/GoogleMap";
 import api from "@/api/firebaseClient";
 
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
 
 async function geocodeLocation(locationStr) {
   const res = await fetch(`/api/geocode?address=${encodeURIComponent(locationStr)}`);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Location not found. Please try a different address or ZIP code.");
   return { lat: data.lat, lng: data.lng };
-}
 
 async function searchRescues(lat, lng) {
   const res = await fetch(`/api/rescue-search?lat=${lat}&lng=${lng}`);
   if (!res.ok) throw new Error("Failed to fetch rescue listings.");
   const data = await res.json();
   return data.results || [];
-}
 
 export default function AnimalRescues() {
   const [location, setLocation] = useState("");
@@ -42,7 +37,6 @@ export default function AnimalRescues() {
   const [mapCenter, setMapCenter] = useState([40.7128, -74.006]);
   const [activeTab, setActiveTab] = useState("all");
   const [showSuggestForm, setShowSuggestForm] = useState(false);
-  const [expandedDescriptions, setExpandedDescriptions] = useState({});
 
   const handleSearch = async () => {
     if (!location.trim()) {
