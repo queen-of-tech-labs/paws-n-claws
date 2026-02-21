@@ -1,0 +1,105 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isOwnerByEmail() {
+      return isAuthenticated() && 
+        resource.data.created_by == request.auth.token.email;
+    }
+    
+    match /profiles/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if request.auth.uid == userId || isAdmin();
+    }
+    
+    match /pets/{docId} {
+      allow read: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+    }
+    
+    match /care_logs/{docId} {
+      allow read: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+    }
+    
+    match /health_records/{docId} {
+      allow read: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+    }
+    
+    match /appointments/{docId} {
+      allow read: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+    }
+    
+    match /reminders/{docId} {
+      allow read: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+    }
+    
+    match /veterinarians/{docId} {
+      allow read: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+    }
+    
+    match /forum_posts/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+    }
+    
+    match /forum_replies/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+    }
+    
+    match /pet_care_guides/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    match /guide_categories/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    match /animal_rescues/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    match /rescue_suggestions/{docId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+    
+    match /feedback/{docId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+    
+    match /notifications/{docId} {
+      allow read: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+      allow create: if isAuthenticated() || isAdmin();
+      allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+    }
+  }
+}
