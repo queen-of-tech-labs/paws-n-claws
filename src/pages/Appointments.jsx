@@ -29,7 +29,7 @@ export default function Appointments() {
 
   const { data: appointments = [], isLoading } = useQuery({
     queryKey: ["appointments"],
-    queryFn: () => user ? api.entities.Appointment.filter({ created_by: user.email }, "-date") : [],
+    queryFn: () => user ? api.entities.Appointment.filter({ created_by: user.email }, "-createdAt") : [],
     enabled: !!user,
   });
 

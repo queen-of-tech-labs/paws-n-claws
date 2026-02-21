@@ -39,7 +39,7 @@ export default function CareTracker() {
 
   const { data: careLogs = [], isLoading } = useQuery({
     queryKey: ["careLogs"],
-    queryFn: () => user ? api.entities.CareLog.filter({ created_by: user.email }, "-date") : [],
+    queryFn: () => user ? api.entities.CareLog.filter({ created_by: user.email }, "-createdAt") : [],
     enabled: !!user,
   });
 
