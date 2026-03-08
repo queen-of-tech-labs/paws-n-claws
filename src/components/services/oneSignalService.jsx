@@ -1,9 +1,6 @@
 /**
  * OneSignal Push Notification Service
  * App ID: 83fd3bf4-a60e-4651-8a59-6141189b6831
- *
- * Notifications are sent via /api/send-notification (Vercel serverless function)
- * which keeps your OneSignal REST API Key secret on the server.
  */
 
 export const ONESIGNAL_APP_ID = '83fd3bf4-a60e-4651-8a59-6141189b6831';
@@ -16,11 +13,18 @@ let initPromise = null;
 // ─────────────────────────────────────────────
 
 export async function initializeOneSignal(userId = null) {
-  if (initialized) return;
+  if (initialized) {
+    // Already initialized — just make sure user is logged in
+    if (userId && window.OneSignal) {
+      try { await window.OneSignal.login(userId); } catch {}
+    }
+    return;
+  }
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
     try {
+      // Load SDK if not already present
       if (!window.OneSignal) {
         await new Promise((resolve, reject) => {
           const script = document.createElement('script');
@@ -31,6 +35,7 @@ export async function initializeOneSignal(userId = null) {
           document.head.appendChild(script);
         });
 
+        // Wait for SDK to be ready
         let attempts = 0;
         while (!window.OneSignal && attempts < 50) {
           await new Promise(r => setTimeout(r, 100));
@@ -48,7 +53,20 @@ export async function initializeOneSignal(userId = null) {
         welcomeNotification: { disable: true },
       });
 
-      if (userId) await window.OneSignal.login(userId);
+      // Login user AFTER init — catch 409 conflicts gracefully
+      if (userId) {
+        try {
+          await window.OneSignal.login(userId);
+        } catch (loginErr) {
+          // 409 means this external_id is already linked to another subscription
+          // This is safe to ignore — the user is still subscribed
+          if (loginErr?.message?.includes('409') || loginErr?.status === 409) {
+            console.warn('OneSignal login 409 - user already linked, continuing');
+          } else {
+            console.warn('OneSignal login warning:', loginErr?.message);
+          }
+        }
+      }
 
       initialized = true;
       console.log('OneSignal initialized');
@@ -69,8 +87,7 @@ export async function initializeOneSignal(userId = null) {
 export async function getPermissionStatus() {
   if (!window.OneSignal) return Notification?.permission ?? 'default';
   try {
-    const granted = window.OneSignal.Notifications.permission;
-    return granted ? 'granted' : 'default';
+    return window.OneSignal.Notifications.permission ? 'granted' : 'default';
   } catch {
     return Notification?.permission ?? 'default';
   }
@@ -82,7 +99,7 @@ export async function requestPermission(userId) {
     const granted = await window.OneSignal.Notifications.requestPermission();
     if (granted && userId) {
       await new Promise(r => setTimeout(r, 500));
-      await window.OneSignal.login(userId);
+      try { await window.OneSignal.login(userId); } catch {}
     }
     return granted === true;
   } catch (err) {
@@ -117,12 +134,12 @@ export async function setUserTags({ userId, email, isPremium, role }) {
       role: role ?? 'user',
     });
   } catch (err) {
-    console.error('Failed to set OneSignal tags:', err);
+    console.warn('Failed to set OneSignal tags:', err?.message);
   }
 }
 
 // ─────────────────────────────────────────────
-// SEND NOTIFICATIONS via Vercel serverless function
+// SEND NOTIFICATIONS via Vercel API
 // ─────────────────────────────────────────────
 
 async function callNotificationAPI(payload) {
@@ -132,7 +149,7 @@ async function callNotificationAPI(payload) {
     body: JSON.stringify(payload),
   });
   if (!response.ok) {
-    const err = await response.json();
+    const err = await response.json().catch(() => ({ error: 'Unknown error' }));
     throw new Error(err.error || 'Failed to send notification');
   }
   return response.json();
@@ -200,7 +217,11 @@ export async function checkAndNotifyDueReminders({ reminders = [], pets = [], us
     const pet = petMap[reminder.pet_id];
     const isOverdue = reminder.due_date < todayStr;
     if (isOverdue) {
-      await sendCareAlertNotification({ petName: pet?.name ?? 'Your pet', careType: reminder.title, userId });
+      await sendCareAlertNotification({
+        petName: pet?.name ?? 'Your pet',
+        careType: reminder.title,
+        userId,
+      });
     } else {
       await sendReminderNotification({
         title: reminder.title,
@@ -227,6 +248,10 @@ export async function checkAndNotifyOverdueCare({ careLogs = [], pets = [], user
 
   for (const log of overdue.slice(0, 2)) {
     const pet = petMap[log.pet_id];
-    await sendCareAlertNotification({ petName: pet?.name ?? 'Your pet', careType: log.title ?? log.type, userId });
+    await sendCareAlertNotification({
+      petName: pet?.name ?? 'Your pet',
+      careType: log.title ?? log.type,
+      userId,
+    });
   }
 }
