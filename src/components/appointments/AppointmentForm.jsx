@@ -9,7 +9,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Loader2, Crown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useQuery } from "@tanstack/react-query";
 
 function convertToUTC(localTime) {
   if (!localTime) return "00:00";
@@ -22,20 +21,33 @@ function convertToUTC(localTime) {
 }
 
 export default function AppointmentForm({ open, onClose, petId, pets, appointment, onSaved, user }) {
-  const { data: veterinarians = [] } = useQuery({
-    queryKey: ["veterinarians"],
-    queryFn: async () => {
+  // ── Lazy-load vets from Firestore when the dialog opens ──────
+  const [veterinarians, setVeterinarians] = useState([]);
+  const [loadingVets, setLoadingVets] = useState(false);
+
+  useEffect(() => {
+    if (!open) return; // Only load when dialog is open
+    let cancelled = false;
+
+    async function loadVets() {
+      setLoadingVets(true);
       try {
-        const u = await api.auth.me();
-        if (!u) return [];
-        return await api.entities.Veterinarian.filter({ created_by: u.email });
+        const currentUser = await api.auth.me();
+        if (!currentUser || cancelled) return;
+        // Filter to only THIS user's saved vets
+        const vets = await api.entities.Veterinarian.filter({ created_by: currentUser.email });
+        if (!cancelled) setVeterinarians(vets || []);
       } catch (err) {
         console.warn("Could not load veterinarians:", err);
-        return [];
+        if (!cancelled) setVeterinarians([]);
+      } finally {
+        if (!cancelled) setLoadingVets(false);
       }
-    },
-    staleTime: 5 * 60 * 1000,
-  });
+    }
+
+    loadVets();
+    return () => { cancelled = true; }; // Cleanup if dialog closes mid-load
+  }, [open]); // Re-runs every time dialog opens
 
   const [form, setForm] = useState(appointment || {
     pet_id: petId || "",
@@ -56,6 +68,27 @@ export default function AppointmentForm({ open, onClose, petId, pets, appointmen
   const [reminderDueDate, setReminderDueDate] = useState(new Date().toISOString().split("T")[0]);
   const [reminderTime, setReminderTime] = useState("09:00");
   const [existingReminderId, setExistingReminderId] = useState(null);
+
+  // Reset form when dialog opens for a new appointment
+  useEffect(() => {
+    if (open && !appointment) {
+      setForm({
+        pet_id: petId || "",
+        title: "",
+        description: "",
+        date: new Date().toISOString().split("T")[0],
+        time: "09:00",
+        vet_name: "",
+        clinic_name: "",
+        clinic_address: "",
+        clinic_phone: "",
+        status: "scheduled",
+        notes: "",
+      });
+      setManualEntry(false);
+      setCreateReminder(false);
+    }
+  }, [open, appointment, petId]);
 
   React.useEffect(() => {
     if (appointment?.id && open) {
@@ -221,49 +254,88 @@ export default function AppointmentForm({ open, onClose, petId, pets, appointmen
             </div>
           )}
 
-          {veterinarians.length > 0 && (
-            <div className="space-y-2 min-w-0">
-              <Label className="flex items-center gap-2">
-                Veterinarian
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-semibold">
-                  <Crown className="w-3 h-3" />
-                  Premium
-                </span>
-              </Label>
-              <Select
-                value={manualEntry ? "manual" : veterinarians.find(v => v.veterinarian_name === form.vet_name && v.clinic_name === form.clinic_name)?.id || ""}
-                onValueChange={handleVetSelect}
-              >
-                <SelectTrigger><SelectValue placeholder="Select a veterinarian or enter manually" /></SelectTrigger>
-                <SelectContent>
-                  {veterinarians.map((vet) => (
-                    <SelectItem key={vet.id} value={vet.id}>Dr. {vet.veterinarian_name} - {vet.clinic_name}</SelectItem>
-                  ))}
+          {/* Vet dropdown — lazy-loaded, only shows if user has saved vets */}
+          <div className="space-y-2 min-w-0">
+            <Label className="flex items-center gap-2">
+              Veterinarian
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-semibold">
+                <Crown className="w-3 h-3" />
+                Premium
+              </span>
+            </Label>
+            <Select
+              value={
+                manualEntry
+                  ? "manual"
+                  : veterinarians.find(v =>
+                      v.veterinarian_name === form.vet_name &&
+                      v.clinic_name === form.clinic_name
+                    )?.id || ""
+              }
+              onValueChange={handleVetSelect}
+              disabled={loadingVets}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={loadingVets ? "Loading your vets…" : "Select a vet or enter manually"} />
+              </SelectTrigger>
+              <SelectContent>
+                {loadingVets ? (
+                  <SelectItem value="loading" disabled>Loading…</SelectItem>
+                ) : veterinarians.length === 0 ? (
                   <SelectItem value="manual">Enter manually</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+                ) : (
+                  <>
+                    {veterinarians.map((vet) => (
+                      <SelectItem key={vet.id} value={vet.id}>
+                        Dr. {vet.veterinarian_name} — {vet.clinic_name}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="manual">Enter manually</SelectItem>
+                  </>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Vet Name</Label>
-              <Input value={form.vet_name} onChange={(e) => handleChange("vet_name", e.target.value)} readOnly={!manualEntry && veterinarians.length > 0 && !!form.vet_name} className={!manualEntry && veterinarians.length > 0 && form.vet_name ? "bg-slate-50" : ""} />
+              <Input
+                value={form.vet_name}
+                onChange={(e) => handleChange("vet_name", e.target.value)}
+                readOnly={!manualEntry && veterinarians.length > 0 && !!form.vet_name}
+                className={!manualEntry && veterinarians.length > 0 && form.vet_name ? "bg-slate-50" : ""}
+              />
             </div>
             <div className="space-y-2">
               <Label>Clinic Name</Label>
-              <Input value={form.clinic_name} onChange={(e) => handleChange("clinic_name", e.target.value)} readOnly={!manualEntry && veterinarians.length > 0 && !!form.clinic_name} className={!manualEntry && veterinarians.length > 0 && form.clinic_name ? "bg-slate-50" : ""} />
+              <Input
+                value={form.clinic_name}
+                onChange={(e) => handleChange("clinic_name", e.target.value)}
+                readOnly={!manualEntry && veterinarians.length > 0 && !!form.clinic_name}
+                className={!manualEntry && veterinarians.length > 0 && form.clinic_name ? "bg-slate-50" : ""}
+              />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Clinic Address</Label>
-              <Input value={form.clinic_address} onChange={(e) => handleChange("clinic_address", e.target.value)} readOnly={!manualEntry && veterinarians.length > 0 && !!form.clinic_address} className={!manualEntry && veterinarians.length > 0 && form.clinic_address ? "bg-slate-50" : ""} />
+              <Input
+                value={form.clinic_address}
+                onChange={(e) => handleChange("clinic_address", e.target.value)}
+                readOnly={!manualEntry && veterinarians.length > 0 && !!form.clinic_address}
+                className={!manualEntry && veterinarians.length > 0 && form.clinic_address ? "bg-slate-50" : ""}
+              />
             </div>
             <div className="space-y-2">
               <Label>Clinic Phone</Label>
-              <Input value={form.clinic_phone} onChange={(e) => handleChange("clinic_phone", e.target.value)} readOnly={!manualEntry && veterinarians.length > 0 && !!form.clinic_phone} className={!manualEntry && veterinarians.length > 0 && form.clinic_phone ? "bg-slate-50" : ""} />
+              <Input
+                value={form.clinic_phone}
+                onChange={(e) => handleChange("clinic_phone", e.target.value)}
+                readOnly={!manualEntry && veterinarians.length > 0 && !!form.clinic_phone}
+                className={!manualEntry && veterinarians.length > 0 && form.clinic_phone ? "bg-slate-50" : ""}
+              />
             </div>
           </div>
 

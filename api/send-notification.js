@@ -15,15 +15,35 @@ const ONESIGNAL_APP_ID = '83fd3bf4-a60e-4651-8a59-6141189b6831';
 const ONESIGNAL_API_URL = 'https://onesignal.com/api/v1/notifications';
 
 export default async function handler(req, res) {
+  // CORS headers — allow your frontend to call this
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // ── KEY CHECK: friendly error if env var is missing ──────────
   const restApiKey = process.env.ONESIGNAL_REST_API_KEY;
   if (!restApiKey) {
-    console.error('ONESIGNAL_REST_API_KEY is not set');
-    return res.status(500).json({ error: 'Server configuration error' });
+    console.error(
+      '❌ ONESIGNAL_REST_API_KEY is not set!\n' +
+      'Fix: Go to Vercel → your project → Settings → Environment Variables\n' +
+      'Add key: ONESIGNAL_REST_API_KEY\n' +
+      'Value: your REST API key from OneSignal → Settings → Keys & IDs\n' +
+      'Then redeploy.'
+    );
+    return res.status(500).json({
+      error: 'Server configuration error: ONESIGNAL_REST_API_KEY is not set in Vercel environment variables.',
+      fix: 'Go to Vercel → Settings → Environment Variables and add ONESIGNAL_REST_API_KEY'
+    });
   }
 
   const { type, userId, notification } = req.body;
@@ -43,16 +63,14 @@ export default async function handler(req, res) {
   let payload;
 
   if (type === 'broadcast') {
-    // Send to ALL subscribed users
     payload = {
       ...basePayload,
       included_segments: ['Total Subscriptions'],
     };
 
   } else if (type === 'reminder' || type === 'care_alert') {
-    // Send to a specific user by their external_id
     if (!userId) {
-      return res.status(400).json({ error: 'userId is required for reminder/care_alert' });
+      return res.status(400).json({ error: 'userId is required for reminder/care_alert notifications' });
     }
     payload = {
       ...basePayload,
@@ -63,7 +81,7 @@ export default async function handler(req, res) {
     };
 
   } else {
-    return res.status(400).json({ error: `Unknown notification type: ${type}` });
+    return res.status(400).json({ error: `Unknown notification type: "${type}". Must be: reminder, care_alert, or broadcast` });
   }
 
   try {
@@ -79,15 +97,18 @@ export default async function handler(req, res) {
     const result = await response.json();
 
     if (!response.ok) {
-      console.error('OneSignal API error:', result);
-      return res.status(500).json({ error: result.errors?.[0] || 'OneSignal API error' });
+      console.error('OneSignal API error:', JSON.stringify(result, null, 2));
+      return res.status(502).json({
+        error: result.errors?.[0] || 'OneSignal rejected the request',
+        onesignal_errors: result.errors || [],
+      });
     }
 
-    console.log(`Sent ${type} notification:`, result.id);
+    console.log(`✅ Sent ${type} notification, id: ${result.id}`);
     return res.status(200).json({ success: true, notificationId: result.id });
 
   } catch (err) {
-    console.error('Failed to send notification:', err);
-    return res.status(500).json({ error: err.message });
+    console.error('Network error calling OneSignal:', err.message);
+    return res.status(500).json({ error: `Network error: ${err.message}` });
   }
 }
