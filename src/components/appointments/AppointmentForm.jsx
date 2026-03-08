@@ -25,8 +25,9 @@ export default function AppointmentForm({ open, onClose, petId, pets, appointmen
   const { data: veterinarians = [] } = useQuery({
     queryKey: ["veterinarians"],
     queryFn: async () => {
-      const u = await api.auth.me();
       try {
+        const u = await api.auth.me();
+        if (!u) return [];
         return await api.entities.Veterinarian.filter({ created_by: u.email });
       } catch (err) {
         console.warn("Could not load veterinarians:", err);
