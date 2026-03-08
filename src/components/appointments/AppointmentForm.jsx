@@ -22,7 +22,6 @@ function convertToUTC(localTime) {
 }
 
 export default function AppointmentForm({ open, onClose, petId, pets, appointment, onSaved, user }) {
-  console.log("AppointmentForm rendering, open:", open, "pets:", pets?.length, "user:", user?.email);
   const { data: veterinarians = [] } = useQuery({
     queryKey: ["veterinarians"],
     queryFn: async () => {
@@ -35,6 +34,7 @@ export default function AppointmentForm({ open, onClose, petId, pets, appointmen
         return [];
       }
     },
+    staleTime: 5 * 60 * 1000,
   });
 
   const [form, setForm] = useState(appointment || {
@@ -144,7 +144,6 @@ export default function AppointmentForm({ open, onClose, petId, pets, appointmen
     }
   };
 
-  console.log("AppointmentForm about to render Dialog");
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden">

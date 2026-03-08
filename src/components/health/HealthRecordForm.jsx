@@ -32,6 +32,7 @@ export default function HealthRecordForm({ open, onClose, petId, pets, record, o
         return [];
       }
     },
+    staleTime: 5 * 60 * 1000,
   });
 
   const [form, setForm] = useState(record || {
