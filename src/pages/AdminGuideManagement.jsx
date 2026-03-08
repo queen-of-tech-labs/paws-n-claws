@@ -37,9 +37,28 @@ export default function AdminGuideManagement() {
   });
 
   // Fetch categories
-  const { data: categories = [] } = useQuery({
+  const DEFAULT_CATEGORIES = [
+    { name: "Nutrition & Diet",      description: "Feeding guides, dietary needs, and nutrition tips" },
+    { name: "Health & Wellness",     description: "Preventive care, vaccinations, and general health" },
+    { name: "Grooming & Hygiene",    description: "Bathing, brushing, nail trimming and coat care" },
+    { name: "Training & Behavior",   description: "Training tips, behavior guides, and socialization" },
+    { name: "Exercise & Play",       description: "Activity guides, playtime ideas, and enrichment" },
+    { name: "Senior Pet Care",       description: "Care guides for aging and senior pets" },
+    { name: "Puppy & Kitten Care",   description: "Care guides for young and newly adopted pets" },
+    { name: "Emergency & First Aid", description: "What to do in emergencies and first aid basics" },
+  ];
+
+  const { data: categories = [], refetch: refetchCategories } = useQuery({
     queryKey: ["guideCategories"],
-    queryFn: () => api.entities.PetCareCategory.list(),
+    queryFn: async () => {
+      const existing = await api.entities.PetCareCategory.list();
+      // Auto-seed default categories if none exist
+      if (existing.length === 0) {
+        await Promise.all(DEFAULT_CATEGORIES.map(cat => api.entities.PetCareCategory.create(cat)));
+        return await api.entities.PetCareCategory.list();
+      }
+      return existing;
+    },
   });
 
   // Create guide mutation

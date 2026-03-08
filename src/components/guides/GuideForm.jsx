@@ -11,8 +11,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertCircle, Upload, X, Save } from "lucide-react";
-import ReactQuill from "react-quill";
-import "react-quill/dist/quill.snow.css";
 import api, { fbStorage } from '@/api/firebaseClient';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
@@ -229,34 +227,12 @@ export default function GuideForm({
             </div>
           )}
         </div>
-        <div className="bg-slate-700/50 border border-slate-600 rounded-lg overflow-hidden [&_.ql-editor_p]:mb-4">
-          <ReactQuill
+        <div className="bg-slate-700/50 border border-slate-600 rounded-lg overflow-hidden">
+          <Textarea
             value={formData.content}
-            onChange={(value) => setFormData({ ...formData, content: value })}
-            theme="snow"
+            onChange={(e) => setFormData({ ...formData, content: e.target.value })}
             placeholder="Write your guide content here..."
-            preserveWhitespace
-            modules={{
-              toolbar: [
-                [{ header: [1, 2, 3, false] }],
-                ["bold", "italic", "underline"],
-                ["blockquote", "code-block"],
-                [{ list: "ordered" }, { list: "bullet" }],
-                ["link"],
-              ],
-              clipboard: {
-                matchVisual: false,
-                matchers: [
-                  ['BR', () => ({ ops: [{ insert: '\n\n' }] })],
-                ],
-              },
-            }}
-            formats={[
-              'header', 'bold', 'italic', 'underline',
-              'blockquote', 'code-block', 'list', 'bullet',
-              'link'
-            ]}
-            className="bg-slate-700/50 text-white [&_.ql-container]:border-0 [&_.ql-editor]:text-white [&_.ql-toolbar]:border-b-slate-600 [&_.ql-editor]:min-h-[300px]"
+            className="bg-transparent border-0 text-white min-h-[300px] resize-y focus:ring-0"
           />
         </div>
         {errors.content && (
