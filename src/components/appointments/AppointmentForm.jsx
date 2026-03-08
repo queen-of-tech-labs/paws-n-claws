@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import api from '@/api/firebaseClient';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Loader2, Crown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,6 +22,7 @@ function convertToUTC(localTime) {
 }
 
 export default function AppointmentForm({ open, onClose, petId, pets, appointment, onSaved, user }) {
+  console.log("AppointmentForm rendering, open:", open, "pets:", pets?.length, "user:", user?.email);
   const { data: veterinarians = [] } = useQuery({
     queryKey: ["veterinarians"],
     queryFn: async () => {
@@ -143,6 +144,7 @@ export default function AppointmentForm({ open, onClose, petId, pets, appointmen
     }
   };
 
+  console.log("AppointmentForm about to render Dialog");
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden">
@@ -150,6 +152,9 @@ export default function AppointmentForm({ open, onClose, petId, pets, appointmen
           <DialogTitle className="text-[#3D2E24]">
             {appointment?.id ? "Edit Appointment" : "New Appointment"}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            {appointment?.id ? "Edit your appointment details" : "Schedule a new vet appointment"}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 min-w-0">

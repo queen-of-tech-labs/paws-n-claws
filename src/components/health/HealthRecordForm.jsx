@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Upload, Loader2, FileText, Crown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -110,6 +110,9 @@ export default function HealthRecordForm({ open, onClose, petId, pets, record, o
           <DialogTitle className="text-[#3D2E24]">
             {record?.id ? "Edit Record" : "Upload Health Record"}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            {record?.id ? "Edit your health record details" : "Upload a new health record for your pet"}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 min-w-0">
