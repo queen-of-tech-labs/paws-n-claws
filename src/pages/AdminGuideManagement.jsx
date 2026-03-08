@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import api, { fbStorage } from '@/api/firebaseClient';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import api from '@/api/firebaseClient';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +12,6 @@ import {
   Edit,
   Trash2,
   Star,
-  Upload,
 } from "lucide-react";
 import GuideForm from "@/components/guides/GuideForm";
 import { useNavigate } from "react-router-dom";
@@ -24,7 +22,7 @@ export default function AdminGuideManagement() {
   const [showForm, setShowForm] = useState(false);
   const [editingGuide, setEditingGuide] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [importing, setImporting] = useState(false);
+
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -80,36 +78,9 @@ export default function AdminGuideManagement() {
     },
   });
 
-  // Import guides from JSON
+  // Bulk import removed — add guides individually using the form below
   const handleImport = async () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".json";
-    input.onchange = async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      
-      setImporting(true);
-      try {
-        const storageRef = ref(fbStorage, `guide-imports/${Date.now()}_${file.name}`);
-        await uploadBytes(storageRef, file);
-        const file_url = await getDownloadURL(storageRef);
-        const response = await api.functions.invoke('importPetGuides', { file_url });
-        
-        if (response.data.success) {
-          alert(`✅ ${response.data.message}`);
-          queryClient.invalidateQueries({ queryKey: ["adminGuides"] });
-          queryClient.invalidateQueries({ queryKey: ["guideCategories"] });
-        } else {
-          alert('Import failed: ' + response.data.error);
-        }
-      } catch (error) {
-        alert('Import failed: ' + error.message);
-      } finally {
-        setImporting(false);
-      }
-    };
-    input.click();
+    alert('Bulk import is not available. Please add guides individually using the + New Guide button.');
   };
 
   // Access check

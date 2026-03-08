@@ -336,21 +336,3 @@ exports.cancelSubscription = onCall(async (request) => {
   }
 });
 
-// ─────────────────────────────────────────────
-// importPetGuides (admin bulk import)
-// ─────────────────────────────────────────────
-exports.importPetGuides = onCall(async (request) => {
-  const { file_url } = request.data;
-  await assertAdmin(request.auth?.uid);
-
-  if (!file_url) {
-    throw new HttpsError('invalid-argument', 'file_url is required.');
-  }
-
-  // Placeholder - full implementation would parse the file and import guides
-  return {
-    success: true,
-    message: 'Guide import received. Manual processing required.',
-    file_url,
-  };
-});
