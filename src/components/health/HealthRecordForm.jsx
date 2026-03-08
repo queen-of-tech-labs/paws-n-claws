@@ -23,8 +23,13 @@ export default function HealthRecordForm({ open, onClose, petId, pets, record, o
   const { data: veterinarians = [] } = useQuery({
     queryKey: ["veterinarians"],
     queryFn: async () => {
-      const user = await api.auth.me();
-      return api.entities.Veterinarian.filter({ created_by: user.email });
+      try {
+        const user = await api.auth.me();
+        return await api.entities.Veterinarian.filter({ created_by: user.email });
+      } catch (err) {
+        console.warn("Could not load veterinarians:", err);
+        return [];
+      }
     },
   });
 
