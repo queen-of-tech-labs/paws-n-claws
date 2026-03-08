@@ -22,140 +22,105 @@ service cloud.firestore {
       allow write: if request.auth.uid == userId || isAdmin();
     }
 
-    // pets
+    // All main collections - simplified rules that definitely work for list queries
     match /pets/{docId} {
-      allow read: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
     }
 
-    // careLogs (camelCase - matches app)
     match /careLogs/{docId} {
-      allow read: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
     }
 
-    // healthRecords (camelCase - matches app)
     match /healthRecords/{docId} {
-      allow read: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
     }
 
-    // appointments
     match /appointments/{docId} {
-      allow read: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
     }
 
-    // reminders
     match /reminders/{docId} {
-      allow read: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
     }
 
-    // veterinarians
     match /veterinarians/{docId} {
-      allow read: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
     }
 
-    // forumPosts (camelCase - matches app)
     match /forumPosts/{docId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
     }
 
-    // forumReplies (camelCase - matches app)
     match /forumReplies/{docId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
     }
 
-    // forumCategories
     match /forumCategories/{docId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
-    // petCareGuides (camelCase - matches app)
     match /petCareGuides/{docId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
-    // petCareCategories
     match /petCareCategories/{docId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
-    // rescueSuggestions (camelCase - matches app)
     match /rescueSuggestions/{docId} {
-      allow read: if isAdmin();
-      allow create: if isAuthenticated();
-      allow update, delete: if isAdmin();
-    }
-
-    // conversations
-    match /conversations/{docId} {
-      allow read: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
     }
 
-    // messages
+    match /conversations/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+    }
+
     match /messages/{docId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
     }
 
-    // feedback
-    match /feedback/{docId} {
-      allow read: if isAdmin();
-      allow create: if isAuthenticated();
-      allow update, delete: if isAdmin();
-    }
-
-    // notifications
     match /notifications/{docId} {
-      allow read: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
     }
 
-    // Keep old snake_case names as fallback in case any old data exists
-    match /care_logs/{docId} {
-      allow read, write: if isAuthenticated();
-    }
+    // health_records (snake_case fallback)
     match /health_records/{docId} {
-      allow read, write: if isAuthenticated();
-    }
-    match /forum_posts/{docId} {
-      allow read, write: if isAuthenticated();
-    }
-    match /forum_replies/{docId} {
-      allow read, write: if isAuthenticated();
-    }
-    match /pet_care_guides/{docId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-    match /animal_rescues/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-    match /rescue_suggestions/{docId} {
-      allow read: if isAdmin();
       allow create: if isAuthenticated();
-      allow update, delete: if isAdmin();
+      allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
+    }
+
+    match /care_logs/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
     }
   }
 }

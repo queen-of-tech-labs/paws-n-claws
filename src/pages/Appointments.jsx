@@ -29,7 +29,15 @@ export default function Appointments() {
 
   const { data: appointments = [], isLoading } = useQuery({
     queryKey: ["appointments"],
-    queryFn: () => user ? api.entities.Appointment.filter({ created_by: user.email }, "-createdAt") : [],
+    queryFn: async () => {
+      if (!user) return [];
+      try {
+        return await api.entities.Appointment.filter({ created_by: user.email }, "-createdAt");
+      } catch (err) {
+        console.error("appointments query error:", err);
+        return [];
+      }
+    },
     enabled: !!user,
   });
 

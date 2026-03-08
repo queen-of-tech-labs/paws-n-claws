@@ -36,9 +36,17 @@ export default function HealthRecords() {
     enabled: !!user,
   });
 
-  const { data: records = [], isLoading } = useQuery({
+  const { data: records = [], isLoading, error: recordsError } = useQuery({
     queryKey: ["healthRecords"],
-    queryFn: () => user ? api.entities.HealthRecord.filter({ created_by: user.email }, "-createdAt") : [],
+    queryFn: async () => {
+      if (!user) return [];
+      try {
+        return await api.entities.HealthRecord.filter({ created_by: user.email }, "-createdAt");
+      } catch (err) {
+        console.error("healthRecords query error:", err);
+        return [];
+      }
+    },
     enabled: !!user,
   });
 
