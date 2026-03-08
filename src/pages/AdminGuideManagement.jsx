@@ -39,7 +39,7 @@ export default function AdminGuideManagement() {
   // Fetch categories
   const { data: categories = [] } = useQuery({
     queryKey: ["guideCategories"],
-    queryFn: () => api.entities.GuideCategory.list(),
+    queryFn: () => api.entities.PetCareCategory.list(),
   });
 
   // Create guide mutation
@@ -146,15 +146,10 @@ export default function AdminGuideManagement() {
             </Button>
             <Button
               onClick={handleImport}
-              disabled={importing}
               variant="outline"
               className="border-slate-600 text-slate-300 hover:bg-slate-700"
             >
-              {importing ? (
-                <Loader className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Upload className="w-4 h-4 mr-2" />
-              )}
+              <Plus className="w-4 h-4 mr-2" />
               Import Guides
             </Button>
           </div>
