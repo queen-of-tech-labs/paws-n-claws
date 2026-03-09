@@ -13,7 +13,7 @@ import {
 import { AlertCircle, Upload, X, Save,
   Bold, Italic, Underline, List, ListOrdered,
   Heading1, Heading2, AlignLeft, AlignCenter, AlignRight,
-  Link, Minus, Quote
+  Link, Minus, Quote, Table
 } from "lucide-react";
 
 // ─── Rich Text Editor ──────────────────────────────────────────────────────
@@ -40,6 +40,59 @@ function RichTextEditor({ value, onChange, placeholder }) {
     if (onChange) onChange(editorRef.current.innerHTML);
   }, [onChange]);
 
+  // "Paste as Table" button — reads clipboard and builds a real HTML table
+  const pasteAsTable = useCallback(async () => {
+    let rawText = "";
+    try {
+      rawText = await navigator.clipboard.readText();
+    } catch {
+      rawText = window.prompt("Paste your table content here (tab-separated columns, one row per line):");
+      if (!rawText) return;
+    }
+    if (!rawText.trim()) return;
+
+    const lines = rawText.trim().split("\n").filter(l => l.trim());
+    // Detect separator: tabs (Word/Excel) or multiple spaces or pipes
+    const sep = lines[0].includes("\t") ? "\t"
+              : lines[0].includes("|")  ? "|"
+              : /\s{2,}/.test(lines[0]) ? /\s{2,}/
+              : null;
+
+    if (!sep || lines.length < 2) {
+      alert("Could not detect table columns. Make sure your table was copied directly from Word or Excel.");
+      return;
+    }
+
+    const rows = lines.map(l => {
+      const cells = typeof sep === "string"
+        ? l.split(sep).map(c => c.trim()).filter((c,i,a) => !(i===0 && c==="") && !(i===a.length-1 && c===""))
+        : l.split(sep).map(c => c.trim());
+      return cells;
+    });
+
+    // First row = header
+    const header = rows[0];
+    const body   = rows.slice(1);
+
+    const thCells = header.map(h =>
+      `<th style="padding:8px 12px;border:1px solid #475569;background:#1e3a5f;color:#ffffff;font-weight:bold;text-align:left;">${h}</th>`
+    ).join("");
+
+    const trRows = body.map((row, ri) => {
+      const bg = ri % 2 === 0 ? "#1e293b" : "#0f172a";
+      const tdCells = header.map((_, ci) =>
+        `<td style="padding:8px 12px;border:1px solid #475569;background:${bg};color:#e2e8f0;vertical-align:top;">${row[ci] || ""}</td>`
+      ).join("");
+      return `<tr>${tdCells}</tr>`;
+    }).join("");
+
+    const tableHtml = `<table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr>${thCells}</tr></thead><tbody>${trRows}</tbody></table>`;
+
+    editorRef.current?.focus();
+    document.execCommand("insertHTML", false, tableHtml);
+    if (onChange) onChange(editorRef.current.innerHTML);
+  }, [onChange]);
+
   // Paste handler — strips colors/fonts but fully preserves structure including tables
   const handlePaste = useCallback((e) => {
     e.preventDefault();
@@ -50,37 +103,58 @@ function RichTextEditor({ value, onChange, placeholder }) {
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, "text/html");
 
-      // ── 1. Unwrap invisible Word/MSO wrapper elements but keep their children ──
+      // ── 1. Check if this paste contains actual <table> elements ──
+      const hasTables = doc.querySelectorAll("table").length > 0;
+
+      // ── 2. Unwrap invisible Word/MSO wrapper elements ──
       doc.querySelectorAll(
         "o\\:p, w\\:sdt, w\\:sdtContent, [class^='Mso'], [class*=' Mso']"
-      ).forEach(el => el.replaceWith(...el.childNodes));
+      ).forEach(el => {
+        // Don't unwrap if inside a table
+        if (!el.closest("table")) el.replaceWith(...el.childNodes);
+      });
 
-      // ── 2. Style tables to look good on the dark background ──
-      doc.querySelectorAll("table").forEach(table => {
-        table.removeAttribute("class");
-        table.style.cssText = "width:100%;border-collapse:collapse;margin:16px 0;";
-      });
-      doc.querySelectorAll("th").forEach(th => {
-        th.removeAttribute("class");
-        th.style.cssText = "padding:8px 12px;border:1px solid #475569;background:#1e3a5f;color:#ffffff;font-weight:bold;text-align:left;";
-      });
-      doc.querySelectorAll("td").forEach((td, i) => {
-        td.removeAttribute("class");
-        // Alternate row shading using row index
-        const row = td.parentElement;
-        const rowIndex = Array.from(row.parentElement.children).indexOf(row);
-        const bg = rowIndex % 2 === 0 ? "#1e293b" : "#0f172a";
-        td.style.cssText = `padding:8px 12px;border:1px solid #475569;background:${bg};color:#e2e8f0;vertical-align:top;`;
-      });
-      doc.querySelectorAll("tr").forEach(tr => tr.removeAttribute("class"));
+      // ── 3. Style tables to look good on the dark background ──
+      if (hasTables) {
+        doc.querySelectorAll("table").forEach(table => {
+          table.removeAttribute("class");
+          table.style.cssText = "width:100%;border-collapse:collapse;margin:16px 0;";
+          // Remove any nested table width/height attrs Word adds
+          table.removeAttribute("width");
+          table.removeAttribute("height");
+          table.removeAttribute("border");
+          table.removeAttribute("cellpadding");
+          table.removeAttribute("cellspacing");
+        });
+        // Style header row (first <tr>)
+        doc.querySelectorAll("table").forEach(table => {
+          const firstRow = table.querySelector("tr");
+          if (firstRow) {
+            firstRow.querySelectorAll("td,th").forEach(cell => {
+              cell.style.cssText = "padding:8px 12px;border:1px solid #475569;background:#1e3a5f;color:#ffffff;font-weight:bold;text-align:left;";
+              cell.removeAttribute("class");
+            });
+            // Remaining rows
+            const otherRows = Array.from(table.querySelectorAll("tr")).slice(1);
+            otherRows.forEach((row, ri) => {
+              const bg = ri % 2 === 0 ? "#1e293b" : "#0f172a";
+              row.querySelectorAll("td,th").forEach(cell => {
+                cell.style.cssText = `padding:8px 12px;border:1px solid #475569;background:${bg};color:#e2e8f0;vertical-align:top;`;
+                cell.removeAttribute("class");
+              });
+              row.removeAttribute("class");
+            });
+          }
+        });
+      }
 
-      // ── 3. Walk every NON-table element: strip ONLY color/font styles ──
+      // ── 4. Strip color/font styles from non-table content ──
       const COLOR_PROPS = [
         "color","background","background-color","font-family",
         "font-size","line-height","letter-spacing","mso-highlight",
-        "text-decoration-color","border-color",
+        "text-decoration-color",
       ];
-      doc.querySelectorAll("*:not(table):not(th):not(td):not(tr)").forEach(el => {
+      doc.querySelectorAll("*:not(table):not(th):not(td):not(tr):not(thead):not(tbody)").forEach(el => {
         COLOR_PROPS.forEach(p => el.style.removeProperty(p));
         el.removeAttribute("class");
         el.removeAttribute("data-contrast");
@@ -89,16 +163,14 @@ function RichTextEditor({ value, onChange, placeholder }) {
         if (el.getAttribute("style") === "") el.removeAttribute("style");
       });
 
-      // ── 4. Convert Word paragraph-as-list-item pattern to real <li> ──
+      // ── 5. Convert Word bullet-paragraph pattern to real lists (skip table content) ──
       const paras = Array.from(doc.querySelectorAll("p"));
       let ulGroup = null, olGroup = null;
       paras.forEach(p => {
-        // Skip paragraphs inside tables — don't touch table content
         if (p.closest("table")) return;
         const raw = p.textContent.trimStart();
         const isBullet  = /^[•·‣▪◦□✓\-]\s/.test(raw);
         const isOrdered = /^\d+[.)]\s/.test(raw);
-
         if (isBullet) {
           if (!ulGroup) { ulGroup = doc.createElement("ul"); p.before(ulGroup); }
           olGroup = null;
@@ -118,7 +190,7 @@ function RichTextEditor({ value, onChange, placeholder }) {
         }
       });
 
-      // ── 5. Collapse empty paragraphs (spacers) — but not inside tables ──
+      // ── 6. Collapse empty spacer paragraphs outside tables ──
       doc.querySelectorAll("p").forEach(p => {
         if (p.closest("table")) return;
         if (!p.textContent.trim() && !p.querySelector("img,br")) {
@@ -128,24 +200,16 @@ function RichTextEditor({ value, onChange, placeholder }) {
 
       document.execCommand("insertHTML", false, doc.body.innerHTML);
     } else if (text) {
-      // Fallback: plain text — split on blank lines into paragraphs
-      const clean = text
-        .split(/\n{2,}/)
-        .map(para => {
-          const lines = para.split("\n");
-          if (lines.every(l => /^[•·\-*□]\s/.test(l.trim()))) {
-            return "<ul>" + lines.map(l =>
-              `<li>${l.replace(/^[•·\-*□]\s*/, "").trim()}</li>`
-            ).join("") + "</ul>";
-          }
-          if (lines.every(l => /^\d+[.)]\s/.test(l.trim()))) {
-            return "<ol>" + lines.map(l =>
-              `<li>${l.replace(/^\d+[.)]\s*/, "").trim()}</li>`
-            ).join("") + "</ol>";
-          }
-          return `<p>${lines.join("<br>")}</p>`;
-        })
-        .join("");
+      const clean = text.split(/\n{2,}/).map(para => {
+        const lines = para.split("\n");
+        if (lines.every(l => /^[•·\-*□]\s/.test(l.trim()))) {
+          return "<ul>" + lines.map(l => `<li>${l.replace(/^[•·\-*□]\s*/, "").trim()}</li>`).join("") + "</ul>";
+        }
+        if (lines.every(l => /^\d+[.)]\s/.test(l.trim()))) {
+          return "<ol>" + lines.map(l => `<li>${l.replace(/^\d+[.)]\s*/, "").trim()}</li>`).join("") + "</ol>";
+        }
+        return `<p>${lines.join("<br>")}</p>`;
+      }).join("");
       document.execCommand("insertHTML", false, clean);
     }
 
@@ -220,6 +284,11 @@ function RichTextEditor({ value, onChange, placeholder }) {
         {/* Extras */}
         {toolbarBtn(<Link className="w-4 h-4"/>, insertLink, "Insert Link")}
         {toolbarBtn(<Minus className="w-4 h-4"/>, insertHR, "Horizontal Rule")}
+        {toolbarBtn(
+          <span className="flex items-center gap-1"><Table className="w-4 h-4"/><span className="text-xs">Table</span></span>,
+          pasteAsTable,
+          "Paste clipboard content as a formatted table — copy your table from Word first, then click this"
+        )}
 
         <div className="w-px h-5 bg-slate-600 mx-1"/>
 
