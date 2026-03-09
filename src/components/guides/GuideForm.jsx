@@ -40,6 +40,56 @@ function RichTextEditor({ value, onChange, placeholder }) {
     if (onChange) onChange(editorRef.current.innerHTML);
   }, [onChange]);
 
+  // Strip inline colors/fonts from pasted content so it inherits the editor's white text
+  const handlePaste = useCallback((e) => {
+    e.preventDefault();
+    const html = e.clipboardData.getData("text/html");
+    const text = e.clipboardData.getData("text/plain");
+
+    let clean = "";
+    if (html) {
+      // Parse the pasted HTML
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+
+      // Walk every element and strip color/font/background inline styles
+      doc.querySelectorAll("*").forEach((el) => {
+        const style = el.style;
+        // Remove color-related and font-related inline styles
+        style.removeProperty("color");
+        style.removeProperty("background");
+        style.removeProperty("background-color");
+        style.removeProperty("font-family");
+        style.removeProperty("font-size");
+        style.removeProperty("line-height");
+        style.removeProperty("letter-spacing");
+        style.removeProperty("mso-highlight");
+        // Remove Word/Google Docs class attributes that carry color
+        el.removeAttribute("class");
+        el.removeAttribute("data-contrast");
+        el.removeAttribute("data-iml");
+        // If the style attribute is now empty, remove it entirely
+        if (!el.getAttribute("style")) el.removeAttribute("style");
+      });
+
+      // Remove Word-specific tags that don't render well
+      doc.querySelectorAll("o\\:p, w\\:sdt, w\\:sdtContent").forEach(el => {
+        el.replaceWith(...el.childNodes);
+      });
+
+      clean = doc.body.innerHTML;
+    } else if (text) {
+      // Plain text — wrap paragraphs
+      clean = text
+        .split(/\n\n+/)
+        .map(p => `<p>${p.replace(/\n/g, "<br>")}</p>`)
+        .join("");
+    }
+
+    document.execCommand("insertHTML", false, clean);
+    if (onChange) onChange(editorRef.current.innerHTML);
+  }, [onChange]);
+
   const handleKeyDown = useCallback((e) => {
     // Tab → indent
     if (e.key === "Tab") {
@@ -133,6 +183,7 @@ function RichTextEditor({ value, onChange, placeholder }) {
         suppressContentEditableWarning
         onInput={handleInput}
         onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
         data-placeholder={placeholder}
         className="min-h-[300px] p-3 text-white focus:outline-none
           [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mb-3 [&_h1]:mt-4 [&_h1]:text-white
