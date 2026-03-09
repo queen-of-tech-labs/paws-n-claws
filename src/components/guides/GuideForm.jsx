@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +10,147 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertCircle, Upload, X, Save } from "lucide-react";
+import { AlertCircle, Upload, X, Save,
+  Bold, Italic, Underline, List, ListOrdered,
+  Heading1, Heading2, AlignLeft, AlignCenter, AlignRight,
+  Link, Minus, Quote
+} from "lucide-react";
+
+// ─── Rich Text Editor ──────────────────────────────────────────────────────
+function RichTextEditor({ value, onChange, placeholder }) {
+  const editorRef = useRef(null);
+  const isInitialized = useRef(false);
+
+  // Set initial content once
+  useEffect(() => {
+    if (editorRef.current && !isInitialized.current) {
+      editorRef.current.innerHTML = value || "";
+      isInitialized.current = true;
+    }
+  }, []);
+
+  const exec = useCallback((cmd, val = null) => {
+    editorRef.current?.focus();
+    document.execCommand(cmd, false, val);
+    // Propagate change
+    if (onChange) onChange(editorRef.current.innerHTML);
+  }, [onChange]);
+
+  const handleInput = useCallback(() => {
+    if (onChange) onChange(editorRef.current.innerHTML);
+  }, [onChange]);
+
+  const handleKeyDown = useCallback((e) => {
+    // Tab → indent
+    if (e.key === "Tab") {
+      e.preventDefault();
+      exec("insertHTML", "&nbsp;&nbsp;&nbsp;&nbsp;");
+    }
+    // Ctrl+B / Cmd+B
+    if ((e.ctrlKey || e.metaKey) && e.key === "b") { e.preventDefault(); exec("bold"); }
+    if ((e.ctrlKey || e.metaKey) && e.key === "i") { e.preventDefault(); exec("italic"); }
+    if ((e.ctrlKey || e.metaKey) && e.key === "u") { e.preventDefault(); exec("underline"); }
+  }, [exec]);
+
+  const insertLink = useCallback(() => {
+    const url = window.prompt("Enter URL:", "https://");
+    if (url) exec("createLink", url);
+  }, [exec]);
+
+  const insertHR = useCallback(() => {
+    exec("insertHTML", "<hr style='border-color:#475569;margin:12px 0'/>");
+  }, [exec]);
+
+  const toolbarBtn = (icon, action, title) => (
+    <button
+      type="button"
+      title={title}
+      onClick={action}
+      className="p-1.5 rounded hover:bg-slate-600 text-slate-300 hover:text-white transition-colors"
+    >
+      {icon}
+    </button>
+  );
+
+  return (
+    <div className="border border-slate-600 rounded-lg overflow-hidden bg-slate-700/50">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-slate-600 bg-slate-800/60">
+        {/* Text style */}
+        {toolbarBtn(<Bold className="w-4 h-4"/>, () => exec("bold"), "Bold (Ctrl+B)")}
+        {toolbarBtn(<Italic className="w-4 h-4"/>, () => exec("italic"), "Italic (Ctrl+I)")}
+        {toolbarBtn(<Underline className="w-4 h-4"/>, () => exec("underline"), "Underline (Ctrl+U)")}
+
+        <div className="w-px h-5 bg-slate-600 mx-1"/>
+
+        {/* Headings */}
+        {toolbarBtn(<Heading1 className="w-4 h-4"/>, () => exec("formatBlock", "<h1>"), "Heading 1")}
+        {toolbarBtn(<Heading2 className="w-4 h-4"/>, () => exec("formatBlock", "<h2>"), "Heading 2")}
+        {toolbarBtn(<span className="text-xs font-bold">H3</span>, () => exec("formatBlock", "<h3>"), "Heading 3")}
+        {toolbarBtn(<AlignLeft className="w-4 h-4"/>, () => exec("formatBlock", "<p>"), "Paragraph")}
+
+        <div className="w-px h-5 bg-slate-600 mx-1"/>
+
+        {/* Lists */}
+        {toolbarBtn(<List className="w-4 h-4"/>, () => exec("insertUnorderedList"), "Bullet List")}
+        {toolbarBtn(<ListOrdered className="w-4 h-4"/>, () => exec("insertOrderedList"), "Numbered List")}
+        {toolbarBtn(<Quote className="w-4 h-4"/>, () => exec("formatBlock", "<blockquote>"), "Blockquote")}
+
+        <div className="w-px h-5 bg-slate-600 mx-1"/>
+
+        {/* Alignment */}
+        {toolbarBtn(<AlignLeft className="w-4 h-4"/>, () => exec("justifyLeft"), "Align Left")}
+        {toolbarBtn(<AlignCenter className="w-4 h-4"/>, () => exec("justifyCenter"), "Align Center")}
+        {toolbarBtn(<AlignRight className="w-4 h-4"/>, () => exec("justifyRight"), "Align Right")}
+
+        <div className="w-px h-5 bg-slate-600 mx-1"/>
+
+        {/* Extras */}
+        {toolbarBtn(<Link className="w-4 h-4"/>, insertLink, "Insert Link")}
+        {toolbarBtn(<Minus className="w-4 h-4"/>, insertHR, "Horizontal Rule")}
+
+        <div className="w-px h-5 bg-slate-600 mx-1"/>
+
+        {/* Font size */}
+        <select
+          onChange={(e) => exec("fontSize", e.target.value)}
+          className="text-xs bg-slate-700 border border-slate-600 text-slate-300 rounded px-1 py-0.5 cursor-pointer"
+          defaultValue=""
+          title="Font Size"
+        >
+          <option value="" disabled>Size</option>
+          <option value="1">Small</option>
+          <option value="3">Normal</option>
+          <option value="5">Large</option>
+          <option value="7">X-Large</option>
+        </select>
+      </div>
+
+      {/* Editor area */}
+      <div
+        ref={editorRef}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={handleInput}
+        onKeyDown={handleKeyDown}
+        data-placeholder={placeholder}
+        className="min-h-[300px] p-3 text-white focus:outline-none
+          [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mb-3 [&_h1]:mt-4 [&_h1]:text-white
+          [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mb-2 [&_h2]:mt-3 [&_h2]:text-slate-200
+          [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mb-2 [&_h3]:mt-2 [&_h3]:text-slate-300
+          [&_p]:mb-2 [&_p]:leading-relaxed
+          [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-2 [&_ul]:space-y-1
+          [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-2 [&_ol]:space-y-1
+          [&_li]:text-slate-200
+          [&_blockquote]:border-l-4 [&_blockquote]:border-blue-500 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-slate-300 [&_blockquote]:my-2
+          [&_a]:text-blue-400 [&_a]:underline
+          [&_hr]:border-slate-500 [&_hr]:my-3
+          empty:before:content-[attr(data-placeholder)] empty:before:text-slate-500 empty:before:pointer-events-none"
+        style={{ whiteSpace: "pre-wrap" }}
+      />
+    </div>
+  );
+}
 import api, { fbStorage } from '@/api/firebaseClient';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
@@ -89,7 +229,7 @@ export default function GuideForm({
   const validateForm = () => {
     const newErrors = {};
     if (!formData.title.trim()) newErrors.title = "Title is required";
-    if (!formData.content.trim()) newErrors.content = "Content is required";
+    if (!formData.content || formData.content.replace(/<[^>]*>/g, "").trim() === "") newErrors.content = "Content is required";
     if (!formData.category_id) newErrors.category_id = "Category is required";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -227,14 +367,11 @@ export default function GuideForm({
             </div>
           )}
         </div>
-        <div className="bg-slate-700/50 border border-slate-600 rounded-lg overflow-hidden">
-          <Textarea
-            value={formData.content}
-            onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-            placeholder="Write your guide content here..."
-            className="bg-transparent border-0 text-white min-h-[300px] resize-y focus:ring-0"
-          />
-        </div>
+        <RichTextEditor
+          value={formData.content}
+          onChange={(html) => setFormData({ ...formData, content: html })}
+          placeholder="Write your guide content here... Use the toolbar above to format text, add headings, bullet points, and more."
+        />
         {errors.content && (
           <p className="text-red-400 text-xs mt-1 flex items-center gap-1">
             <AlertCircle className="w-3 h-3" /> {errors.content}
