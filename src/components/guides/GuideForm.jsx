@@ -40,7 +40,7 @@ function RichTextEditor({ value, onChange, placeholder }) {
     if (onChange) onChange(editorRef.current.innerHTML);
   }, [onChange]);
 
-  // Paste handler — strips colors/fonts but fully preserves structure
+  // Paste handler — strips colors/fonts but fully preserves structure including tables
   const handlePaste = useCallback((e) => {
     e.preventDefault();
     const html  = e.clipboardData.getData("text/html");
@@ -55,37 +55,55 @@ function RichTextEditor({ value, onChange, placeholder }) {
         "o\\:p, w\\:sdt, w\\:sdtContent, [class^='Mso'], [class*=' Mso']"
       ).forEach(el => el.replaceWith(...el.childNodes));
 
-      // ── 2. Walk every element: strip ONLY color/font styles, keep everything else ──
+      // ── 2. Style tables to look good on the dark background ──
+      doc.querySelectorAll("table").forEach(table => {
+        table.removeAttribute("class");
+        table.style.cssText = "width:100%;border-collapse:collapse;margin:16px 0;";
+      });
+      doc.querySelectorAll("th").forEach(th => {
+        th.removeAttribute("class");
+        th.style.cssText = "padding:8px 12px;border:1px solid #475569;background:#1e3a5f;color:#ffffff;font-weight:bold;text-align:left;";
+      });
+      doc.querySelectorAll("td").forEach((td, i) => {
+        td.removeAttribute("class");
+        // Alternate row shading using row index
+        const row = td.parentElement;
+        const rowIndex = Array.from(row.parentElement.children).indexOf(row);
+        const bg = rowIndex % 2 === 0 ? "#1e293b" : "#0f172a";
+        td.style.cssText = `padding:8px 12px;border:1px solid #475569;background:${bg};color:#e2e8f0;vertical-align:top;`;
+      });
+      doc.querySelectorAll("tr").forEach(tr => tr.removeAttribute("class"));
+
+      // ── 3. Walk every NON-table element: strip ONLY color/font styles ──
       const COLOR_PROPS = [
         "color","background","background-color","font-family",
         "font-size","line-height","letter-spacing","mso-highlight",
         "text-decoration-color","border-color",
       ];
-      doc.querySelectorAll("*").forEach(el => {
+      doc.querySelectorAll("*:not(table):not(th):not(td):not(tr)").forEach(el => {
         COLOR_PROPS.forEach(p => el.style.removeProperty(p));
-        // Remove class/data attrs that carry Word color themes
         el.removeAttribute("class");
         el.removeAttribute("data-contrast");
         el.removeAttribute("data-iml");
         el.removeAttribute("lang");
-        // Clean up empty style attributes
         if (el.getAttribute("style") === "") el.removeAttribute("style");
       });
 
-      // ── 3. Convert Word paragraph-as-list-item pattern to real <li> ──
-      // Word sometimes pastes lists as <p> tags with bullet chars instead of <ul><li>
+      // ── 4. Convert Word paragraph-as-list-item pattern to real <li> ──
       const paras = Array.from(doc.querySelectorAll("p"));
       let ulGroup = null, olGroup = null;
       paras.forEach(p => {
+        // Skip paragraphs inside tables — don't touch table content
+        if (p.closest("table")) return;
         const raw = p.textContent.trimStart();
-        const isBullet  = /^[•·‣▪◦\-]\s/.test(raw);
+        const isBullet  = /^[•·‣▪◦□✓\-]\s/.test(raw);
         const isOrdered = /^\d+[.)]\s/.test(raw);
 
         if (isBullet) {
           if (!ulGroup) { ulGroup = doc.createElement("ul"); p.before(ulGroup); }
           olGroup = null;
           const li = doc.createElement("li");
-          li.innerHTML = p.innerHTML.replace(/^[•·‣▪◦\-]\s*/, "");
+          li.innerHTML = p.innerHTML.replace(/^[•·‣▪◦□✓\-]\s*/, "");
           ulGroup.appendChild(li);
           p.remove();
         } else if (isOrdered) {
@@ -100,8 +118,9 @@ function RichTextEditor({ value, onChange, placeholder }) {
         }
       });
 
-      // ── 4. Collapse empty paragraphs used as spacers into a single <br> ──
+      // ── 5. Collapse empty paragraphs (spacers) — but not inside tables ──
       doc.querySelectorAll("p").forEach(p => {
+        if (p.closest("table")) return;
         if (!p.textContent.trim() && !p.querySelector("img,br")) {
           p.replaceWith(doc.createElement("br"));
         }
@@ -114,10 +133,9 @@ function RichTextEditor({ value, onChange, placeholder }) {
         .split(/\n{2,}/)
         .map(para => {
           const lines = para.split("\n");
-          // Detect plain-text bullet lists
-          if (lines.every(l => /^[•·\-*]\s/.test(l.trim()))) {
+          if (lines.every(l => /^[•·\-*□]\s/.test(l.trim()))) {
             return "<ul>" + lines.map(l =>
-              `<li>${l.replace(/^[•·\-*]\s*/, "").trim()}</li>`
+              `<li>${l.replace(/^[•·\-*□]\s*/, "").trim()}</li>`
             ).join("") + "</ul>";
           }
           if (lines.every(l => /^\d+[.)]\s/.test(l.trim()))) {
