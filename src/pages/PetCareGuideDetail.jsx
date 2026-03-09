@@ -184,8 +184,8 @@ export default function PetCareGuideDetail() {
                 [&_a]:text-blue-400 [&_a]:underline [&_a]:hover:text-blue-300
                 [&_hr]:border-slate-600 [&_hr]:my-6
                 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg [&_img]:my-4
-                [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
-                [&_th]:p-3 [&_th]:border [&_th]:border-slate-600 [&_th]:bg-slate-700 [&_th]:text-white [&_th]:font-bold [&_th]:text-left
+                [&_table]:w-full [&_table]:border-collapse [&_table]:my-4 [&_table]:block [&_table]:overflow-x-auto [&_table]:min-w-0
+                [&_th]:p-3 [&_th]:border [&_th]:border-slate-600 [&_th]:bg-slate-700 [&_th]:text-white [&_th]:font-bold [&_th]:text-left [&_th]:whitespace-nowrap
                 [&_td]:p-3 [&_td]:border [&_td]:border-slate-600 [&_td]:text-slate-300 [&_td]:align-top
                 [&_tr:nth-child(even)_td]:bg-slate-800/60
                 [&_tr:nth-child(odd)_td]:bg-slate-900/40
