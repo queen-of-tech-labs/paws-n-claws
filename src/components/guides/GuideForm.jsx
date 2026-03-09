@@ -40,53 +40,97 @@ function RichTextEditor({ value, onChange, placeholder }) {
     if (onChange) onChange(editorRef.current.innerHTML);
   }, [onChange]);
 
-  // Strip inline colors/fonts from pasted content so it inherits the editor's white text
+  // Paste handler — strips colors/fonts but fully preserves structure
   const handlePaste = useCallback((e) => {
     e.preventDefault();
-    const html = e.clipboardData.getData("text/html");
-    const text = e.clipboardData.getData("text/plain");
+    const html  = e.clipboardData.getData("text/html");
+    const text  = e.clipboardData.getData("text/plain");
 
-    let clean = "";
     if (html) {
-      // Parse the pasted HTML
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, "text/html");
 
-      // Walk every element and strip color/font/background inline styles
-      doc.querySelectorAll("*").forEach((el) => {
-        const style = el.style;
-        // Remove color-related and font-related inline styles
-        style.removeProperty("color");
-        style.removeProperty("background");
-        style.removeProperty("background-color");
-        style.removeProperty("font-family");
-        style.removeProperty("font-size");
-        style.removeProperty("line-height");
-        style.removeProperty("letter-spacing");
-        style.removeProperty("mso-highlight");
-        // Remove Word/Google Docs class attributes that carry color
+      // ── 1. Unwrap invisible Word/MSO wrapper elements but keep their children ──
+      doc.querySelectorAll(
+        "o\\:p, w\\:sdt, w\\:sdtContent, [class^='Mso'], [class*=' Mso']"
+      ).forEach(el => el.replaceWith(...el.childNodes));
+
+      // ── 2. Walk every element: strip ONLY color/font styles, keep everything else ──
+      const COLOR_PROPS = [
+        "color","background","background-color","font-family",
+        "font-size","line-height","letter-spacing","mso-highlight",
+        "text-decoration-color","border-color",
+      ];
+      doc.querySelectorAll("*").forEach(el => {
+        COLOR_PROPS.forEach(p => el.style.removeProperty(p));
+        // Remove class/data attrs that carry Word color themes
         el.removeAttribute("class");
         el.removeAttribute("data-contrast");
         el.removeAttribute("data-iml");
-        // If the style attribute is now empty, remove it entirely
-        if (!el.getAttribute("style")) el.removeAttribute("style");
+        el.removeAttribute("lang");
+        // Clean up empty style attributes
+        if (el.getAttribute("style") === "") el.removeAttribute("style");
       });
 
-      // Remove Word-specific tags that don't render well
-      doc.querySelectorAll("o\\:p, w\\:sdt, w\\:sdtContent").forEach(el => {
-        el.replaceWith(...el.childNodes);
+      // ── 3. Convert Word paragraph-as-list-item pattern to real <li> ──
+      // Word sometimes pastes lists as <p> tags with bullet chars instead of <ul><li>
+      const paras = Array.from(doc.querySelectorAll("p"));
+      let ulGroup = null, olGroup = null;
+      paras.forEach(p => {
+        const raw = p.textContent.trimStart();
+        const isBullet  = /^[•·‣▪◦\-]\s/.test(raw);
+        const isOrdered = /^\d+[.)]\s/.test(raw);
+
+        if (isBullet) {
+          if (!ulGroup) { ulGroup = doc.createElement("ul"); p.before(ulGroup); }
+          olGroup = null;
+          const li = doc.createElement("li");
+          li.innerHTML = p.innerHTML.replace(/^[•·‣▪◦\-]\s*/, "");
+          ulGroup.appendChild(li);
+          p.remove();
+        } else if (isOrdered) {
+          if (!olGroup) { olGroup = doc.createElement("ol"); p.before(olGroup); }
+          ulGroup = null;
+          const li = doc.createElement("li");
+          li.innerHTML = p.innerHTML.replace(/^\d+[.)]\s*/, "");
+          olGroup.appendChild(li);
+          p.remove();
+        } else {
+          ulGroup = null; olGroup = null;
+        }
       });
 
-      clean = doc.body.innerHTML;
+      // ── 4. Collapse empty paragraphs used as spacers into a single <br> ──
+      doc.querySelectorAll("p").forEach(p => {
+        if (!p.textContent.trim() && !p.querySelector("img,br")) {
+          p.replaceWith(doc.createElement("br"));
+        }
+      });
+
+      document.execCommand("insertHTML", false, doc.body.innerHTML);
     } else if (text) {
-      // Plain text — wrap paragraphs
-      clean = text
-        .split(/\n\n+/)
-        .map(p => `<p>${p.replace(/\n/g, "<br>")}</p>`)
+      // Fallback: plain text — split on blank lines into paragraphs
+      const clean = text
+        .split(/\n{2,}/)
+        .map(para => {
+          const lines = para.split("\n");
+          // Detect plain-text bullet lists
+          if (lines.every(l => /^[•·\-*]\s/.test(l.trim()))) {
+            return "<ul>" + lines.map(l =>
+              `<li>${l.replace(/^[•·\-*]\s*/, "").trim()}</li>`
+            ).join("") + "</ul>";
+          }
+          if (lines.every(l => /^\d+[.)]\s/.test(l.trim()))) {
+            return "<ol>" + lines.map(l =>
+              `<li>${l.replace(/^\d+[.)]\s*/, "").trim()}</li>`
+            ).join("") + "</ol>";
+          }
+          return `<p>${lines.join("<br>")}</p>`;
+        })
         .join("");
+      document.execCommand("insertHTML", false, clean);
     }
 
-    document.execCommand("insertHTML", false, clean);
     if (onChange) onChange(editorRef.current.innerHTML);
   }, [onChange]);
 
