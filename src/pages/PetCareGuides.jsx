@@ -4,11 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import api from '@/api/firebaseClient';
 import { createPageUrl } from "@/utils/index";
 import GuideSearch from "@/components/guides/GuideSearch";
-import PetTypeFilter from "@/components/guides/PetTypeFilter";
 import FeaturedGuides from "@/components/guides/FeaturedGuides";
 import GuideCategories from "@/components/guides/GuideCategories";
 import GuideList from "@/components/guides/GuideList";
 import PremiumFeatureLocked from "@/components/shared/PremiumFeatureLocked";
+
+const PET_TYPES = ["all", "dog", "cat", "bird", "rabbit", "hamster", "fish", "reptile", "general"];
 
 export default function PetCareGuidesPage() {
   const [searchParams] = useSearchParams();
@@ -22,10 +23,7 @@ export default function PetCareGuidesPage() {
   useEffect(() => {
     const checkUser = async () => {
       const isAuthenticated = await api.auth.isAuthenticated();
-      if (!isAuthenticated) {
-        navigate('/login');
-        return;
-      }
+      if (!isAuthenticated) { window.location.href = createPageUrl("Login"); return; }
       const userData = await api.auth.me();
       setUser(userData);
       setIsPremium(userData?.premium_subscriber === true);
@@ -36,45 +34,42 @@ export default function PetCareGuidesPage() {
 
   useEffect(() => {
     const categoryFromUrl = searchParams.get("category");
-    if (categoryFromUrl) {
-      setSelectedCategoryId(categoryFromUrl);
-    }
+    if (categoryFromUrl) setSelectedCategoryId(categoryFromUrl);
   }, [searchParams]);
 
   // Fetch guides
   const { data: guides = [], isLoading: guidesLoading } = useQuery({
     queryKey: ["petCareGuides"],
-    queryFn: () => api.entities.PetCareGuide.list("-created_date", 100),
+    queryFn: () => api.entities.PetCareGuide.list("-createdAt", 100),
+    enabled: !loading,
   });
 
-  // Fetch categories
+  // Fetch categories — correct entity name
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
     queryKey: ["guideCategories"],
-    queryFn: () => api.entities.GuideCategory.list(),
+    queryFn: () => api.entities.PetCareCategory.list(),
+    enabled: !loading,
   });
 
-  // Create category map for lookup
-  const categoryMap = Object.fromEntries(
-    categories.map((cat) => [cat.id, cat.name])
-  );
+  // Category map for lookup
+  const categoryMap = Object.fromEntries(categories.map((cat) => [cat.id, cat.name]));
 
-  // Filter guides
+  // Filter guides — handle both pet_types (array) and legacy pet_type (string)
   const filteredGuides = guides.filter((guide) => {
-    const matchesPetType = selectedPetType === "all" || guide.pet_type === selectedPetType;
+    const petTypes = guide.pet_types || (guide.pet_type ? [guide.pet_type] : ["general"]);
+    const matchesPetType = selectedPetType === "all" || petTypes.includes(selectedPetType);
     const matchesCategory = !selectedCategoryId || guide.category_id === selectedCategoryId;
     const categoryName = categoryMap[guide.category_id] || "";
-    const matchesSearch = guide.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      guide.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      categoryName.toLowerCase().includes(searchQuery.toLowerCase());
+    const searchText = (guide.title + " " + (guide.overview || "") + " " + categoryName).toLowerCase();
+    const matchesSearch = !searchQuery || searchText.includes(searchQuery.toLowerCase());
     return matchesPetType && matchesCategory && matchesSearch;
   });
 
-  // Featured guides
-  const featuredGuides = guides.filter((guide) => guide.is_featured).slice(0, 3);
+  const featuredGuides = guides.filter((g) => g.is_featured).slice(0, 3);
 
   if (loading) return null;
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === "admin";
   if (!isPremium && !isAdmin) {
     return (
       <PremiumFeatureLocked
@@ -97,21 +92,70 @@ export default function PetCareGuidesPage() {
         <GuideSearch searchQuery={searchQuery} onSearchChange={setSearchQuery} />
 
         {/* Pet Type Filter */}
-        <PetTypeFilter selectedPetType={selectedPetType} onPetTypeChange={setSelectedPetType} />
+        <div className="flex flex-wrap gap-2 mb-6">
+          {PET_TYPES.map((type) => (
+            <button
+              key={type}
+              onClick={() => setSelectedPetType(type)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium capitalize transition-colors ${
+                selectedPetType === type
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-700/50 text-slate-300 hover:bg-slate-600/50"
+              }`}
+            >
+              {type === "all" ? "All Pets" : type}
+            </button>
+          ))}
+        </div>
 
         {/* Featured Guides */}
-        {!guidesLoading && featuredGuides.length > 0 && (
+        {!guidesLoading && featuredGuides.length > 0 && !selectedCategoryId && !searchQuery && (
           <FeaturedGuides guides={featuredGuides} />
         )}
 
-        {/* Categories Grid */}
-        <div>
-          <GuideCategories 
-            categories={categories} 
-            isLoading={categoriesLoading}
-            selectedCategoryId={selectedCategoryId}
-          />
-        </div>
+        {/* Category Filter active — show guides for that category */}
+        {selectedCategoryId ? (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white">
+                {categoryMap[selectedCategoryId] || "Category"}
+              </h2>
+              <button
+                onClick={() => setSelectedCategoryId(null)}
+                className="text-sm text-slate-400 hover:text-white transition-colors"
+              >
+                ← All Categories
+              </button>
+            </div>
+            <GuideList guides={filteredGuides} isLoading={guidesLoading} />
+          </div>
+        ) : searchQuery ? (
+          // Search results
+          <div>
+            <h2 className="text-lg font-semibold text-slate-300 mb-4">
+              {filteredGuides.length} result{filteredGuides.length !== 1 ? "s" : ""} for "{searchQuery}"
+            </h2>
+            <GuideList guides={filteredGuides} isLoading={guidesLoading} />
+          </div>
+        ) : (
+          // Default: show categories grid
+          <div>
+            <h2 className="text-xl font-bold text-white mb-4">Browse by Category</h2>
+            <GuideCategories
+              categories={categories}
+              isLoading={categoriesLoading}
+              selectedCategoryId={selectedCategoryId}
+              onCategoryClick={setSelectedCategoryId}
+            />
+            {/* Show all guides below categories */}
+            {!guidesLoading && guides.length > 0 && (
+              <div className="mt-10">
+                <h2 className="text-xl font-bold text-white mb-4">All Guides</h2>
+                <GuideList guides={filteredGuides} isLoading={guidesLoading} />
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -12,40 +12,29 @@ export default function PetCareGuideCategory() {
   const navigate = useNavigate();
   const categoryId = searchParams.get("category");
 
-  // Fetch category details
+  // Fetch categories — correct entity name
   const { data: categories = [] } = useQuery({
     queryKey: ["guideCategories"],
-    queryFn: () => api.entities.GuideCategory.list(),
+    queryFn: () => api.entities.PetCareCategory.list(),
   });
 
   const category = categories.find((cat) => cat.id === categoryId);
 
-  // Fetch guides for this category
-  const { data: guides = [], isLoading } = useQuery({
-    queryKey: ["petCareGuides", categoryId],
-    queryFn: () =>
-      api.entities.PetCareGuide.filter(
-        { category_id: categoryId },
-        "-created_date",
-        100
-      ),
+  // Fetch ALL guides then filter client-side by category_id
+  const { data: allGuides = [], isLoading } = useQuery({
+    queryKey: ["petCareGuides"],
+    queryFn: () => api.entities.PetCareGuide.list("-createdAt", 100),
     enabled: !!categoryId,
   });
 
-  // Fetch all categories for guide display
-  const { data: allCategories = [] } = useQuery({
-    queryKey: ["allGuideCategories"],
-    queryFn: () => api.entities.GuideCategory.list(),
-  });
+  const guides = allGuides.filter((g) => g.category_id === categoryId);
 
   if (!categoryId) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-6">
         <div className="text-center">
           <p className="text-slate-400 mb-4">No category selected</p>
-          <Button onClick={() => navigate(createPageUrl("PetCareGuides"))}>
-            Back to Guides
-          </Button>
+          <Button onClick={() => navigate(createPageUrl("PetCareGuides"))}>Back to Guides</Button>
         </div>
       </div>
     );
@@ -75,16 +64,14 @@ export default function PetCareGuideCategory() {
           </div>
         </div>
 
-        {/* Guides List */}
+        {/* Guides */}
         {isLoading ? (
           <div className="flex justify-center py-12">
             <Loader className="w-8 h-8 text-blue-400 animate-spin" />
           </div>
         ) : guides.length === 0 ? (
-          <div className="bg-slate-800/30 backdrop-blur-sm rounded-2xl p-12 border border-slate-700/50 text-center">
-            <p className="text-slate-400 mb-4">
-              No guides in this category yet
-            </p>
+          <div className="bg-slate-800/30 rounded-2xl p-12 border border-slate-700/50 text-center">
+            <p className="text-slate-400 mb-4">No guides in this category yet.</p>
             <Button
               onClick={() => navigate(createPageUrl("PetCareGuides"))}
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
@@ -93,11 +80,7 @@ export default function PetCareGuideCategory() {
             </Button>
           </div>
         ) : (
-          <GuideList
-            guides={guides}
-            categories={allCategories}
-            isLoading={isLoading}
-          />
+          <GuideList guides={guides} isLoading={false} />
         )}
       </div>
     </div>

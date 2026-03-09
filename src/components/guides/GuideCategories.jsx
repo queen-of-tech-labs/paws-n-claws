@@ -4,7 +4,7 @@ import { createPageUrl } from "@/utils/index";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader } from "lucide-react";
 
-export default function GuideCategories({ categories, isLoading, selectedCategoryId }) {
+export default function GuideCategories({ categories, isLoading, selectedCategoryId, onCategoryClick }) {
   const navigate = useNavigate();
 
   if (isLoading) {
@@ -16,7 +16,11 @@ export default function GuideCategories({ categories, isLoading, selectedCategor
   }
 
   const handleCategoryClick = (categoryId) => {
-    navigate(createPageUrl(`PetCareGuideCategory?category=${categoryId}`));
+    if (onCategoryClick) {
+      onCategoryClick(categoryId);
+    } else {
+      navigate(createPageUrl(`PetCareGuideCategory?category=${categoryId}`));
+    }
   };
 
   return (
