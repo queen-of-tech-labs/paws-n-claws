@@ -149,7 +149,7 @@ export default function PetCareGuideDetail() {
               <img
                 src={guide.image_url}
                 alt={guide.title}
-                className="w-full h-64 object-cover rounded-lg mb-6"
+                className="w-full object-contain rounded-lg mb-6"
               />
             )}
 
