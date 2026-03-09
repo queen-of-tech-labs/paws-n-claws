@@ -232,9 +232,13 @@ export default function VetFinder() {
                           </Button>
                         </a>
                       )}
-                      {vet.place_id && (
+                      {(vet.place_id || vet.name) && (
                         <a
-                          href={`https://www.google.com/maps/place/?q=place_id:${vet.place_id}`}
+                          href={
+                            vet.place_id
+                              ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(vet.name)}&query_place_id=${vet.place_id}`
+                              : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${vet.name} ${vet.address}`)}`
+                          }
                           target="_blank"
                           rel="noopener noreferrer"
                         >
