@@ -102,24 +102,35 @@ export default function Layout({ children, currentPageName }) {
           console.error('OneSignal init error:', err);
         }
 
-        // Check for due reminders and overdue care after login
-        // Small delay to let queries settle
-        setTimeout(async () => {
-          try {
-            const [reminders, careLogs, pets] = await Promise.all([
-              (authUser.premium_subscriber || authUser.role === 'admin')
-                ? api.entities.Reminder.filter({ created_by: authUser.email })
-                : Promise.resolve([]),
-              api.entities.CareLog.filter({ created_by: authUser.email }),
-              api.entities.Pet.filter({ created_by: authUser.email }),
-            ]);
-            const uid = authUser.id || authUser.uid;
-            await checkAndNotifyDueReminders({ reminders, pets, userId: uid });
-            await checkAndNotifyOverdueCare({ careLogs, pets, userId: uid });
-          } catch (err) {
-            console.error('Notification check error:', err);
-          }
-        }, 3000);
+        // Check for due reminders and overdue care — but only ONCE per day per user.
+        // We store a key in sessionStorage with today's date so navigating between
+        // pages never re-triggers the popups until the next calendar day.
+        const today = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+        const uid = authUser.id || authUser.uid;
+        const notifKey = `notif_checked_${uid}_${today}`;
+        const alreadyCheckedToday = sessionStorage.getItem(notifKey);
+
+        if (!alreadyCheckedToday) {
+          // Mark as checked immediately so fast navigations can't trigger a second run
+          sessionStorage.setItem(notifKey, '1');
+
+          // Small delay to let queries settle after first page load
+          setTimeout(async () => {
+            try {
+              const [reminders, careLogs, pets] = await Promise.all([
+                (authUser.premium_subscriber || authUser.role === 'admin')
+                  ? api.entities.Reminder.filter({ created_by: authUser.email })
+                  : Promise.resolve([]),
+                api.entities.CareLog.filter({ created_by: authUser.email }),
+                api.entities.Pet.filter({ created_by: authUser.email }),
+              ]);
+              await checkAndNotifyDueReminders({ reminders, pets, userId: uid });
+              await checkAndNotifyOverdueCare({ careLogs, pets, userId: uid });
+            } catch (err) {
+              console.error('Notification check error:', err);
+            }
+          }, 3000);
+        }
       }
 
       // Check if notification setup is pending (admin upgraded to premium)
