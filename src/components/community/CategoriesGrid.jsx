@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import api from '@/api/firebaseClient';
+import api, { Timestamp } from '@/api/firebaseClient';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -202,6 +202,7 @@ export default function CategoriesGrid({ isAdmin }) {
 
         const createdDate = new Date();
         createdDate.setDate(createdDate.getDate() - post.daysAgo);
+        const firestoreTimestamp = Timestamp.fromDate(createdDate);
 
         await api.entities.ForumPost.create({
           title: post.title,
@@ -209,6 +210,7 @@ export default function CategoriesGrid({ isAdmin }) {
           category_id: category.id,
           author_name: post.author,
           created_date: createdDate.toISOString(),
+          createdAt: firestoreTimestamp,
           view_count: post.view_count,
           reply_count: post.reply_count,
           is_seeded: true,

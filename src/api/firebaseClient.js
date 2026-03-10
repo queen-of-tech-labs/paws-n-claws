@@ -23,6 +23,7 @@ import {
   limit,
   setDoc,
   serverTimestamp,
+  Timestamp,
 } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -47,7 +48,7 @@ const db        = getFirestore(app);
 const fbStorage = getStorage(app);
 const fbFunctions = getFunctions(app);
 
-export { fbAuth, db, fbStorage, fbFunctions };
+export { fbAuth, db, fbStorage, fbFunctions, Timestamp };
 
 // ─────────────────────────────────────────────
 // Auth helpers  (mirrors base44.auth.*)
