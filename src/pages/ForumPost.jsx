@@ -30,9 +30,8 @@ export default function ForumPost() {
   // Fetch post
   const { data: post, isLoading: postLoading, error: postError } = useQuery({
     queryKey: ["forumPost", postId],
-    queryFn: () => postId ? api.entities.ForumPost.filter({ id: postId }) : Promise.resolve([]),
+    queryFn: () => postId ? api.entities.ForumPost.get(postId) : Promise.resolve(null),
     enabled: !!postId,
-    select: (data) => data[0] || null,
   });
 
   // Fetch pet if post has pet_id
