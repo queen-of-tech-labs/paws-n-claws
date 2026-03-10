@@ -98,11 +98,12 @@ export default function ReminderCard({ reminder, petName, onAcknowledge, onCompl
     notes: reminder.notes || "",
   });
   const Icon = reminderIcons[reminder.type] || AlertCircle;
-  const dueDate = formatDateString(reminder.due_date);
-  const isDue = isToday(dueDate);
-  const isOverdue = isPast(dueDate) && !isToday(dueDate);
-  const dueDateText =
-    isToday(dueDate)
+  const dueDate = reminder.due_date ? formatDateString(reminder.due_date) : null;
+  const isDue = dueDate ? isToday(dueDate) : false;
+  const isOverdue = dueDate ? (isPast(dueDate) && !isToday(dueDate)) : false;
+  const dueDateText = !dueDate
+    ? "No date set"
+    : isToday(dueDate)
       ? "Today"
       : isTomorrow(dueDate)
         ? "Tomorrow"

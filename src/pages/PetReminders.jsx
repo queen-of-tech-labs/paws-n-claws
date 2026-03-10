@@ -29,14 +29,24 @@ export default function PetReminders() {
 
   const { data: reminders = [] } = useQuery({
     queryKey: ["reminders", user?.email],
-    queryFn: () => user ? api.entities.Reminder.filter({ created_by: user.email }, "-due_date") : [],
+    queryFn: async () => {
+      if (!user) return [];
+      // Use filterOnly to avoid needing a Firestore composite index,
+      // then sort client-side by due_date ascending (soonest first)
+      const results = await api.entities.Reminder.filterOnly({ created_by: user.email });
+      return results.sort((a, b) => {
+        const da = a.due_date ? new Date(a.due_date) : new Date(0);
+        const db2 = b.due_date ? new Date(b.due_date) : new Date(0);
+        return da - db2;
+      });
+    },
     enabled: !!user,
     refetchInterval: 5000,
   });
 
   const { data: pets = [] } = useQuery({
     queryKey: ["pets"],
-    queryFn: () => user ? api.entities.Pet.filter({ created_by: user.email }) : [],
+    queryFn: () => user ? api.entities.Pet.filterOnly({ created_by: user.email }) : [],
     enabled: !!user,
   });
 
