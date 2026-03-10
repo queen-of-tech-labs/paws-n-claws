@@ -41,7 +41,7 @@ export default function PetHelperChat({ selectedPet, onConversationCreated }) {
       // Create conversation on first message if needed
       let convId = currentConversationId;
       if (!convId) {
-        const conv = await api.entities.ChatConversation.create({
+        const conv = await api.entities.Conversation.create({
           pet_id: selectedPet?.id,
           conversation_id: `conv_${Date.now()}`,
           title: userMessage.substring(0, 50),
@@ -76,13 +76,13 @@ export default function PetHelperChat({ selectedPet, onConversationCreated }) {
       setMessages((prev) => [...prev, { role: "assistant", content: data.response }]);
 
       // Save to conversation
-      const conversation = await api.entities.ChatConversation.get(convId);
+      const conversation = await api.entities.Conversation.get(convId);
       const updatedMessages = [
         ...conversation.messages,
         { role: "user", content: userMessage, timestamp: new Date().toISOString() },
         { role: "assistant", content: data.response, timestamp: new Date().toISOString() }
       ];
-      await api.entities.ChatConversation.update(convId, {
+      await api.entities.Conversation.update(convId, {
         messages: updatedMessages,
         message_count: updatedMessages.length,
         last_message_timestamp: new Date().toISOString()
@@ -203,5 +203,5 @@ export default function PetHelperChat({ selectedPet, onConversationCreated }) {
         />
       </div>
       </div>
-      );
-      }
+  );
+}

@@ -37,7 +37,11 @@ export default function PetAssistantPage() {
 
   const { data: pets = [] } = useQuery({
     queryKey: ['pets', user?.email],
-    queryFn: () => user ? api.entities.Pet.filter({ created_by: user.email }, 'name', 100) : Promise.resolve([]),
+    queryFn: async () => {
+      if (!user) return [];
+      const results = await api.entities.Pet.filterOnly({ created_by: user.email });
+      return results.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    },
     enabled: !loading && !!user
   });
 
