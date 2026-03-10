@@ -69,6 +69,7 @@ export default function PetHelperChat({ selectedPet, onConversationCreated }) {
       } : null;
 
       const { data } = await api.functions.invoke('petHelperAI', {
+        prompt: userMessage,
         message: userMessage,
         petContext
       });

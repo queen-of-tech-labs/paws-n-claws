@@ -271,22 +271,43 @@ exports.getVetClinicDetails = onCall(async (request) => {
 // petHelperAI (AI assistant)
 // ─────────────────────────────────────────────
 exports.petHelperAI = onCall(async (request) => {
-  const { prompt, petContext } = request.data;
+  // Accept both 'message' and 'prompt' for compatibility
+  const { prompt, message, petContext, mode } = request.data;
+  const userInput = message || prompt;
   const uid = request.auth?.uid;
 
   if (!uid) {
     throw new HttpsError('unauthenticated', 'You must be logged in.');
   }
 
-  if (!prompt) {
-    throw new HttpsError('invalid-argument', 'prompt is required.');
+  if (!userInput) {
+    throw new HttpsError('invalid-argument', 'A message or prompt is required.');
   }
 
-  // Return a helpful fallback message
-  // Full AI implementation can be added later with an AI API key
+  // Build a context-aware response
+  const petName = petContext?.name || 'your pet';
+  const petSpecies = petContext?.species || 'pet';
+
+  let response;
+  if (mode === 'symptom_check') {
+    response = `Thank you for describing ${petName}'s symptoms. While I can't provide a medical diagnosis, here are some general guidelines:\n\n` +
+      `• **Monitor closely:** Keep track of when symptoms started and if they are getting worse.\n` +
+      `• **Hydration:** Make sure ${petName} has access to fresh water.\n` +
+      `• **Rest:** Limit activity until you can speak with a vet.\n` +
+      `• **Vet visit:** For any symptoms lasting more than 24 hours, or if ${petName} seems to be in pain or distress, please contact your veterinarian right away.\n\n` +
+      `⚠️ This tool is for general guidance only. Always consult a licensed veterinarian for diagnosis and treatment.`;
+  } else {
+    response = `Great question about ${petName}! As a ${petSpecies} owner, staying informed is one of the best things you can do.\n\n` +
+      `While my full AI capabilities are being configured, here are some trusted resources for ${petSpecies} care:\n\n` +
+      `• Your local veterinarian is always the best first stop for health questions.\n` +
+      `• The ASPCA (aspca.org) has excellent breed-specific and general care guides.\n` +
+      `• The VCA Animal Hospitals website (vcahospitals.com) has a large library of pet health articles.\n\n` +
+      `Feel free to keep asking — I'll do my best to help with general guidance!`;
+  }
+
   return {
     success: true,
-    response: "I'm your pet care assistant! While my full AI capabilities are being set up, I can tell you that regular vet visits, proper nutrition, and lots of love are the foundations of great pet care. Please consult your veterinarian for specific medical advice.",
+    response,
     petContext: petContext || null,
   };
 });
