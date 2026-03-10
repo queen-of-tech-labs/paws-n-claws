@@ -1,4 +1,7 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { defineSecret } = require('firebase-functions/params');
+
+const ANTHROPIC_API_KEY = defineSecret('ANTHROPIC_API_KEY');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore } = require('firebase-admin/firestore');
@@ -271,7 +274,7 @@ exports.getVetClinicDetails = onCall(async (request) => {
 // petHelperAI (AI assistant)
 // ─────────────────────────────────────────────
 exports.petHelperAI = onCall(
-  { secrets: ['ANTHROPIC_API_KEY'] },
+  { secrets: [ANTHROPIC_API_KEY] },
   async (request) => {
     // Accept both 'message' and 'prompt' for compatibility
     const { prompt, message, petContext, mode } = request.data;
@@ -286,7 +289,7 @@ exports.petHelperAI = onCall(
       throw new HttpsError('invalid-argument', 'A message or prompt is required.');
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = ANTHROPIC_API_KEY.value();
     if (!apiKey) {
       throw new HttpsError('internal', 'AI service is not configured.');
     }
