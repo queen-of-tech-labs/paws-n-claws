@@ -57,7 +57,7 @@ export default function PetCommunity() {
         <CommunityHeader />
         <WelcomeSection />
         <TrendingDiscussions />
-        <CategoriesGrid />
+        <CategoriesGrid isAdmin={isAdmin} />
         <RecentDiscussions />
         <SafetySection />
       </div>
