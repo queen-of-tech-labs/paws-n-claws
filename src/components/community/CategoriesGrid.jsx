@@ -207,7 +207,7 @@ export default function CategoriesGrid({ isAdmin }) {
           title: post.title,
           content: post.content,
           category_id: category.id,
-          created_by: post.author,
+          author_name: post.author,
           created_date: createdDate.toISOString(),
           view_count: post.view_count,
           reply_count: post.reply_count,

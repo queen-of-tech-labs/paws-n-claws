@@ -6,7 +6,8 @@ import { createPageUrl } from "@/utils/index";
 import { useEffect as useLayoutEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, AlertCircle, Loader, Flag, Eye, MessageCircle, Edit2, X, Save } from "lucide-react";
+import { ArrowLeft, AlertCircle, Loader, Flag, Eye, MessageCircle, Edit2, X, Save, User, Calendar } from "lucide-react";
+import { formatDistanceToNow, format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import ReplyForm from "@/components/forum/ReplyForm";
 import ReplyItem from "@/components/forum/ReplyItem";
@@ -211,14 +212,46 @@ export default function ForumPost() {
                 </div>
               ) : (
                 <>
-                  <CardTitle className="text-white text-2xl mb-2">{post.title}</CardTitle>
-                  {postCreator && (
-                    <p className="text-sm text-slate-400">
-                      By <span className="font-medium text-slate-300">
-                        {postCreator.username || postCreator.full_name}
-                      </span>
-                    </p>
-                  )}
+                  <CardTitle className="text-white text-2xl mb-3">{post.title}</CardTitle>
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400 mt-1">
+                    <span className="flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5 text-slate-500" />
+                      {post.author_name
+                        ? post.author_name
+                        : postCreator
+                          ? (postCreator.username || postCreator.full_name)
+                          : post.created_by && !post.created_by.includes("@")
+                            ? post.created_by
+                            : "Community Member"}
+                    </span>
+                    {(post.created_date || post.createdAt) && (
+                      <>
+                        <span className="text-slate-600">•</span>
+                        <span className="flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                          {(() => {
+                            try {
+                              const d = post.created_date
+                                ? new Date(post.created_date)
+                                : post.createdAt?.toDate?.() || new Date(post.createdAt);
+                              return format(d, "MMM d, yyyy");
+                            } catch { return null; }
+                          })()}
+                        </span>
+                        <span className="text-slate-600">•</span>
+                        <span className="text-slate-500 text-xs">
+                          {(() => {
+                            try {
+                              const d = post.created_date
+                                ? new Date(post.created_date)
+                                : post.createdAt?.toDate?.() || new Date(post.createdAt);
+                              return formatDistanceToNow(d, { addSuffix: true });
+                            } catch { return null; }
+                          })()}
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </>
               )}
             </div>
