@@ -30,15 +30,30 @@ export default function ForumCategoryPage() {
   const category = categories.find((cat) => cat.id === categoryId);
 
   // Fetch posts for this category
-  const { data: posts = [], isLoading } = useQuery({
+  // Note: sort is done client-side to avoid needing a Firestore composite index
+  const { data: rawPosts = [], isLoading } = useQuery({
     queryKey: ["forumPosts", categoryId],
-    queryFn: () =>
-      api.entities.ForumPost.filter(
+    queryFn: async () => {
+      const allPosts = await api.entities.ForumPost.filterOnly(
         { category_id: categoryId },
-        "-created_date",
         100
-      ),
+      );
+      return allPosts;
+    },
     enabled: !!categoryId,
+  });
+
+  // Sort client-side: newest first, handling both Firestore Timestamps and ISO strings
+  const posts = [...rawPosts].sort((a, b) => {
+    const getTime = (p) => {
+      try {
+        if (p.createdAt?.toDate) return p.createdAt.toDate().getTime();
+        if (p.created_date) return new Date(p.created_date).getTime();
+        if (p.createdAt) return new Date(p.createdAt).getTime();
+        return 0;
+      } catch { return 0; }
+    };
+    return getTime(b) - getTime(a);
   });
 
   // Fetch all pets for display

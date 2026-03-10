@@ -158,6 +158,18 @@ function makeEntity(collectionName) {
       return snap.docs.map(docToEntity);
     },
 
+    // filterOnly: filter without orderBy — avoids needing composite indexes.
+    // Sort results in your component instead.
+    async filterOnly(filters = {}, maxResults = 100) {
+      const constraints = [limit(maxResults)];
+      Object.entries(filters).forEach(([key, val]) => {
+        constraints.push(where(key, '==', val));
+      });
+      const q = query(col(), ...constraints);
+      const snap = await getDocs(q);
+      return snap.docs.map(docToEntity);
+    },
+
     async get(id) {
       const snap = await getDoc(doc(db, collectionName, id));
       return docToEntity(snap);
