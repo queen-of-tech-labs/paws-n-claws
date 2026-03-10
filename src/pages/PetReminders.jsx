@@ -71,7 +71,10 @@ export default function PetReminders() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (formData) => api.entities.Reminder.create(formData),
+    mutationFn: (formData) => api.entities.Reminder.create({
+      ...formData,
+      status: "pending",
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["reminders"] });
       setShowForm(false);
@@ -104,7 +107,9 @@ export default function PetReminders() {
   pets.forEach(p => { petMap[p.id] = p; });
 
   const filteredReminders = reminders.filter(r => {
-    const statusMatch = filters.status === "all" || r.status === filters.status;
+    // Treat missing status as "pending" for backwards compatibility
+    const effectiveStatus = r.status || "pending";
+    const statusMatch = filters.status === "all" || effectiveStatus === filters.status;
     const typeMatch = filters.type === "all" || r.type === filters.type;
     return statusMatch && typeMatch;
   });
