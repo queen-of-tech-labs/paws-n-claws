@@ -270,47 +270,85 @@ exports.getVetClinicDetails = onCall(async (request) => {
 // ─────────────────────────────────────────────
 // petHelperAI (AI assistant)
 // ─────────────────────────────────────────────
-exports.petHelperAI = onCall(async (request) => {
-  // Accept both 'message' and 'prompt' for compatibility
-  const { prompt, message, petContext, mode } = request.data;
-  const userInput = message || prompt;
-  const uid = request.auth?.uid;
+exports.petHelperAI = onCall(
+  { secrets: ['ANTHROPIC_API_KEY'] },
+  async (request) => {
+    // Accept both 'message' and 'prompt' for compatibility
+    const { prompt, message, petContext, mode } = request.data;
+    const userInput = message || prompt;
+    const uid = request.auth?.uid;
 
-  if (!uid) {
-    throw new HttpsError('unauthenticated', 'You must be logged in.');
+    if (!uid) {
+      throw new HttpsError('unauthenticated', 'You must be logged in.');
+    }
+
+    if (!userInput) {
+      throw new HttpsError('invalid-argument', 'A message or prompt is required.');
+    }
+
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      throw new HttpsError('internal', 'AI service is not configured.');
+    }
+
+    // Build pet context string for the system prompt
+    const petName = petContext?.name || 'the pet';
+    const petSpecies = petContext?.species || 'unknown species';
+    const petBreed = petContext?.breed ? `, ${petContext.breed} breed` : '';
+    const petAge = petContext?.age ? `, ${petContext.age} years old` : '';
+    const petWeight = petContext?.weight ? `, weighing ${petContext.weight}` : '';
+    const petAllergies = petContext?.allergies ? `. Known allergies: ${petContext.allergies}` : '';
+    const petMedical = petContext?.medicalHistory ? `. Medical history: ${petContext.medicalHistory}` : '';
+    const spayedNeutered = petContext?.spayedNeutered ? '. Spayed/neutered.' : '';
+
+    const isSymptomCheck = mode === 'symptom_check';
+
+    const systemPrompt = isSymptomCheck
+      ? `You are a helpful pet health assistant for the Paws & Claws app. The user is describing symptoms for their ${petSpecies} named ${petName}${petBreed}${petAge}${petWeight}${petAllergies}${petMedical}${spayedNeutered}.
+
+Analyze the symptoms described and provide:
+1. Possible causes (list the most likely ones)
+2. Urgency level (Can wait for regular vet appointment / Should see vet soon / Seek emergency care immediately)
+3. What to watch for at home
+4. Whether this needs immediate veterinary attention
+
+Always end with a reminder that this is not a diagnosis and they should consult their veterinarian. Be caring, clear, and concise.`
+      : `You are a knowledgeable, friendly pet care assistant for the Paws & Claws app. You are currently helping with questions about ${petName}, a ${petSpecies}${petBreed}${petAge}${petWeight}${petAllergies}${petMedical}${spayedNeutered}.
+
+Answer the user's questions about pet health, nutrition, behavior, grooming, and general care. Be specific to this pet's species and details when relevant. Be warm, helpful, and concise. For serious medical concerns, always recommend consulting a veterinarian. Do not diagnose medical conditions.`;
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 1024,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userInput }],
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        console.error('Anthropic API error:', err);
+        throw new HttpsError('internal', 'AI service returned an error.');
+      }
+
+      const result = await response.json();
+      const aiResponse = result.content?.[0]?.text || 'Sorry, I could not generate a response.';
+
+      return { success: true, response: aiResponse, petContext: petContext || null };
+    } catch (error) {
+      console.error('petHelperAI error:', error);
+      throw new HttpsError('internal', 'Failed to get AI response. Please try again.');
+    }
   }
-
-  if (!userInput) {
-    throw new HttpsError('invalid-argument', 'A message or prompt is required.');
-  }
-
-  // Build a context-aware response
-  const petName = petContext?.name || 'your pet';
-  const petSpecies = petContext?.species || 'pet';
-
-  let response;
-  if (mode === 'symptom_check') {
-    response = `Thank you for describing ${petName}'s symptoms. While I can't provide a medical diagnosis, here are some general guidelines:\n\n` +
-      `• **Monitor closely:** Keep track of when symptoms started and if they are getting worse.\n` +
-      `• **Hydration:** Make sure ${petName} has access to fresh water.\n` +
-      `• **Rest:** Limit activity until you can speak with a vet.\n` +
-      `• **Vet visit:** For any symptoms lasting more than 24 hours, or if ${petName} seems to be in pain or distress, please contact your veterinarian right away.\n\n` +
-      `⚠️ This tool is for general guidance only. Always consult a licensed veterinarian for diagnosis and treatment.`;
-  } else {
-    response = `Great question about ${petName}! As a ${petSpecies} owner, staying informed is one of the best things you can do.\n\n` +
-      `While my full AI capabilities are being configured, here are some trusted resources for ${petSpecies} care:\n\n` +
-      `• Your local veterinarian is always the best first stop for health questions.\n` +
-      `• The ASPCA (aspca.org) has excellent breed-specific and general care guides.\n` +
-      `• The VCA Animal Hospitals website (vcahospitals.com) has a large library of pet health articles.\n\n` +
-      `Feel free to keep asking — I'll do my best to help with general guidance!`;
-  }
-
-  return {
-    success: true,
-    response,
-    petContext: petContext || null,
-  };
-});
+);
 
 // ─────────────────────────────────────────────
 // createCheckoutSession (Stripe payments)
