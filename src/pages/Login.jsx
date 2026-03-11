@@ -56,6 +56,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await authHelpers.redirectToLogin('/dashboard');
+      navigate('/dashboard');
     } catch (err) {
       setError(err.message);
       setLoading(false);

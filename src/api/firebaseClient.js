@@ -2,12 +2,15 @@ import { initializeApp } from 'firebase/app';
 import {
   getAuth,
   signInWithPopup,
+  signInWithCredential,
   signInWithEmailLink,
   sendSignInLinkToEmail,
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
 } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import {
   getFirestore,
   collection,
@@ -71,13 +74,20 @@ export const auth = {
     };
   },
 
-  /** Sign in with Google popup */
+  /** Sign in with Google — uses native plugin on Android, popup on web */
   async redirectToLogin(redirectTo) {
     try {
-      await signInWithPopup(fbAuth, googleProvider);
-      window.location.href = redirectTo || '/dashboard';
+      if (Capacitor.isNativePlatform()) {
+        const googleUser = await GoogleAuth.signIn();
+        const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
+        await signInWithCredential(fbAuth, credential);
+      } else {
+        await signInWithPopup(fbAuth, googleProvider);
+      }
+      // navigation handled by caller
     } catch (error) {
       console.error('Google sign-in error:', error);
+      throw error;
     }
   },
 
@@ -94,7 +104,7 @@ export const auth = {
   /** Sign out */
   async logout(redirectTo) {
     await signOut(fbAuth);
-    window.location.href = redirectTo || '/';
+    // navigation handled by caller
   },
 
   /** Update current user's profile */

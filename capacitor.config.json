@@ -1,0 +1,12 @@
+{
+  "appId": "com.pawsandclaws.app",
+  "appName": "Paws and Claws",
+  "webDir": "dist",
+  "plugins": {
+    "GoogleAuth": {
+      "scopes": ["profile", "email"],
+      "serverClientId": "264364776080-ig58tvhl9m7m6lp4eioa1qmpk2dc99l0.apps.googleusercontent.com",
+      "forceCodeForRefreshToken": true
+    }
+  }
+}
