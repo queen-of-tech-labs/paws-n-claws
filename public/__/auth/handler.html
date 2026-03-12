@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-auth-compat.js"></script>
+</head>
+<body>
+  <script>
+    // This page handles the Firebase auth callback
+    if (window.opener) {
+      window.opener.postMessage('authComplete', '*');
+    }
+  </script>
+</body>
+</html>
