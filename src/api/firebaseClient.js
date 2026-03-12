@@ -2,15 +2,13 @@ import { initializeApp } from 'firebase/app';
 import {
   getAuth,
   signInWithPopup,
-  signInWithCredential,
   signInWithEmailLink,
   sendSignInLinkToEmail,
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
 } from 'firebase/auth';
-import { Capacitor } from '@capacitor/core';
-import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
+
 import {
   getFirestore,
   collection,
@@ -38,7 +36,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 // ─────────────────────────────────────────────
 const firebaseConfig = {
   apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  authDomain:        'paws-n-claws.vercel.app',
   projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
@@ -74,16 +72,10 @@ export const auth = {
     };
   },
 
-  /** Sign in with Google — uses native plugin on Android, popup on web */
+  /** Sign in with Google popup */
   async redirectToLogin(redirectTo) {
     try {
-      if (Capacitor.isNativePlatform()) {
-        const googleUser = await GoogleAuth.signIn();
-        const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
-        await signInWithCredential(fbAuth, credential);
-      } else {
-        await signInWithPopup(fbAuth, googleProvider);
-      }
+      await signInWithPopup(fbAuth, googleProvider);
       // navigation handled by caller
     } catch (error) {
       console.error('Google sign-in error:', error);
