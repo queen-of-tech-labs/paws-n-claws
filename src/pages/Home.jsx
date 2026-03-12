@@ -346,11 +346,16 @@ export default function Home() {
                   const response = await api.functions.invoke('createCheckoutSession', {
                     priceId: 'price_1T2GVUJKBH02BiIFrQGvTDlQ',
                     mode: 'subscription',
-                    successUrl: window.location.origin + createPageUrl("Dashboard"),
-                    cancelUrl: window.location.origin + createPageUrl("Home")
+                    successUrl: 'https://paws-n-claws.vercel.app' + createPageUrl("Dashboard"),
+                    cancelUrl: 'https://paws-n-claws.vercel.app' + createPageUrl("Home")
                   });
                   if (response.data?.url) {
-                    window.location.href = response.data.url;
+                    // Open Stripe in external browser on native, same tab on web
+                    if (window.Capacitor?.isNativePlatform()) {
+                      window.open(response.data.url, '_system');
+                    } else {
+                      window.location.href = response.data.url;
+                    }
                   } else {
                     alert('Failed to start checkout. Please try again.');
                   }
