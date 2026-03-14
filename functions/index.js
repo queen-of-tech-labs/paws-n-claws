@@ -2,6 +2,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 
 const ANTHROPIC_API_KEY = defineSecret('ANTHROPIC_API_KEY');
+const STRIPE_SECRET_KEY = defineSecret('STRIPE_SECRET_KEY');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore } = require('firebase-admin/firestore');
@@ -356,22 +357,62 @@ Answer the user's questions about pet health, nutrition, behavior, grooming, and
 // ─────────────────────────────────────────────
 // createCheckoutSession (Stripe payments)
 // ─────────────────────────────────────────────
-exports.createCheckoutSession = onCall(async (request) => {
-  const uid = request.auth?.uid;
+exports.createCheckoutSession = onCall(
+  { secrets: [STRIPE_SECRET_KEY] },
+  async (request) => {
+    const uid = request.auth?.uid;
 
-  if (!uid) {
-    throw new HttpsError('unauthenticated', 'You must be logged in.');
+    if (!uid) {
+      throw new HttpsError('unauthenticated', 'You must be logged in.');
+    }
+
+    const { priceId, successUrl, cancelUrl } = request.data;
+
+    if (!priceId) {
+      throw new HttpsError('invalid-argument', 'priceId is required.');
+    }
+
+    const stripeKey = STRIPE_SECRET_KEY.value();
+    if (!stripeKey) {
+      throw new HttpsError('internal', 'Stripe is not configured.');
+    }
+
+    const stripe = require('stripe')(stripeKey);
+
+    try {
+      // Get or create Stripe customer for this user
+      const profileSnap = await db.collection('profiles').doc(uid).get();
+      const profile = profileSnap.exists ? profileSnap.data() : {};
+      let customerId = profile.stripe_customer_id;
+
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: profile.email || '',
+          metadata: { firebaseUID: uid },
+        });
+        customerId = customer.id;
+        await db.collection('profiles').doc(uid).update({
+          stripe_customer_id: customerId,
+        });
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ['card'],
+        line_items: [{ price: priceId, quantity: 1 }],
+        mode: 'subscription',
+        success_url: successUrl || 'https://paws-n-claws.vercel.app/dashboard',
+        cancel_url: cancelUrl || 'https://paws-n-claws.vercel.app/',
+        metadata: { firebaseUID: uid },
+      });
+
+      return { success: true, url: session.url };
+    } catch (error) {
+      console.error('Stripe error:', error);
+      throw new HttpsError('internal', error.message);
+    }
   }
-
-  // Stripe integration placeholder
-  // To enable payments: add STRIPE_SECRET_KEY to Firebase env config
-  // and implement full Stripe checkout session creation
-  return {
-    success: false,
-    message: 'Payment processing is not yet configured. Please contact support.',
-    url: null,
-  };
-});
+);
 
 // ─────────────────────────────────────────────
 // cancelSubscription
