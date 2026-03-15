@@ -10,9 +10,13 @@ export async function checkNotificationPermission() {
     if (isNative()) {
       return new Promise((resolve) => {
         if (!window.plugins?.OneSignal) { resolve('default'); return; }
-        window.plugins.OneSignal.Notifications.getPermissionAsync((permission) => {
-          resolve(permission ? 'granted' : 'default');
-        });
+        try {
+          window.plugins.OneSignal.Notifications.getPermissionAsync((permission) => {
+            resolve(permission ? 'granted' : 'default');
+          });
+        } catch {
+          resolve('default');
+        }
       });
     }
     if (!window.OneSignal) return 'default';
@@ -24,16 +28,38 @@ export async function checkNotificationPermission() {
 }
 
 /**
- * Request notification permission
+ * Request notification permission — with timeout fallback
  */
 export async function requestNotificationPermission() {
   try {
     if (isNative()) {
       return new Promise((resolve) => {
         if (!window.plugins?.OneSignal) { resolve(false); return; }
-        window.plugins.OneSignal.Notifications.requestPermission(true, (accepted) => {
-          resolve(accepted === true);
-        });
+
+        // Timeout after 15 seconds in case callback never fires
+        const timer = setTimeout(() => {
+          console.warn('Permission request timed out — checking current status');
+          // Check if permission was actually granted even if callback didn't fire
+          try {
+            window.plugins.OneSignal.Notifications.getPermissionAsync((permission) => {
+              resolve(permission === true);
+            });
+          } catch {
+            resolve(false);
+          }
+        }, 15000);
+
+        try {
+          window.plugins.OneSignal.Notifications.requestPermission(true, (accepted) => {
+            clearTimeout(timer);
+            console.log('Native permission result:', accepted);
+            resolve(accepted === true);
+          });
+        } catch (e) {
+          clearTimeout(timer);
+          console.error('requestPermission error:', e);
+          resolve(false);
+        }
       });
     }
     if (!window.OneSignal) return false;
@@ -50,12 +76,13 @@ export async function requestNotificationPermission() {
  */
 export async function registerDevice(userId) {
   try {
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 1000));
     const deviceToken = await getSubscriptionId();
     if (!deviceToken) {
       console.warn('Failed to get device token');
       return false;
     }
+    console.log('Device token obtained:', deviceToken);
     if (userId) {
       if (isNative()) {
         window.plugins?.OneSignal?.login(userId);
