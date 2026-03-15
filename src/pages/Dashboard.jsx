@@ -13,6 +13,7 @@ import {
 import { motion } from "framer-motion";
 import { format, isToday, isTomorrow, isBefore, addDays, differenceInDays } from "date-fns";
 import UpcomingReminders from "@/components/dashboard/UpcomingReminders";
+import { checkAndNotifyDueReminders, checkAndNotifyOverdueCare } from "@/components/services/oneSignalService";
 
 function calculateAge(dateOfBirth) {
   const birth = new Date(dateOfBirth);
@@ -63,6 +64,21 @@ export default function Dashboard() {
     queryFn: () => user?.premium_subscriber || user?.role === 'admin' ? api.entities.Reminder.filter({ created_by: user.email }, "-due_date") : [],
     enabled: !!user && (user?.premium_subscriber || user?.role === 'admin'),
   });
+
+  // Fire notifications when app opens and data is loaded
+  useEffect(() => {
+    if (!user || !pets.length) return;
+    const timer = setTimeout(async () => {
+      console.log('Checking due reminders and care logs for notifications...');
+      if (reminders.length > 0) {
+        await checkAndNotifyDueReminders({ reminders, pets, userId: user.id });
+      }
+      if (careLogs.length > 0) {
+        await checkAndNotifyOverdueCare({ careLogs, pets, userId: user.id });
+      }
+    }, 5000); // Wait 5 seconds after load to send
+    return () => clearTimeout(timer);
+  }, [user?.id, pets.length, reminders.length, careLogs.length]);
 
   const acknowledgeMutation = useMutation({
     mutationFn: (reminderId) => api.entities.Reminder.update(reminderId, { status: "acknowledged" }),

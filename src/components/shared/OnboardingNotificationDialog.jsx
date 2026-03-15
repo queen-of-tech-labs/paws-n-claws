@@ -6,35 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Bell, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const isNative = () => !!(window.Capacitor?.isNativePlatform?.());
-
-// Check permission using Capacitor's native bridge directly
-// bypassing OneSignal's buggy getPermissionAsync on Samsung
-async function checkNativePermission() {
-  try {
-    // Try Capacitor's local notifications plugin first
-    if (window.Capacitor?.Plugins?.LocalNotifications) {
-      const result = await window.Capacitor.Plugins.LocalNotifications.checkPermissions();
-      console.log('LocalNotifications permission:', result?.display);
-      return result?.display === 'granted';
-    }
-  } catch (e) {
-    console.warn('LocalNotifications check failed:', e);
-  }
-
-  // Fallback: try OneSignal's own permission check
-  try {
-    const os = window.plugins?.OneSignal;
-    if (os?.Notifications?.hasPermission) {
-      const result = os.Notifications.hasPermission();
-      console.log('OneSignal hasPermission (sync):', result);
-      return !!result;
-    }
-  } catch (e) {
-    console.warn('OneSignal hasPermission failed:', e);
-  }
-
-  return false;
-}
+const NOTIF_SETUP_KEY = 'paws_notif_setup_done';
 
 export default function OnboardingNotificationDialog({ open, onOpenChange, userId }) {
   const [loading, setLoading] = useState(false);
@@ -48,72 +20,84 @@ export default function OnboardingNotificationDialog({ open, onOpenChange, userI
 
     try {
       const os = window.plugins?.OneSignal;
-      if (!os && isNative()) {
-        setError('Notification service not available. Please restart the app.');
-        setLoading(false);
-        return;
-      }
-
-      // Check current permission status
-      let granted = false;
 
       if (isNative()) {
-        granted = await checkNativePermission();
-        console.log('Native permission check result:', granted);
+        if (!os) {
+          setError('Notification service not available. Please restart the app.');
+          setLoading(false);
+          return;
+        }
+
+        // Request permission — with timeout fallback that re-reads actual status
+        const granted = await new Promise((resolve) => {
+          const timer = setTimeout(async () => {
+            console.log('Request timed out - checking actual permission status');
+            // Use hasPermission (sync) as fallback — more reliable on Samsung
+            try {
+              const has = os.Notifications.hasPermission?.();
+              console.log('hasPermission fallback:', has);
+              resolve(!!has);
+            } catch {
+              resolve(false);
+            }
+          }, 10000);
+
+          try {
+            os.Notifications.requestPermission(true, (accepted) => {
+              clearTimeout(timer);
+              console.log('requestPermission result:', accepted);
+              // Even if callback says false, double-check with hasPermission
+              // Samsung sometimes fires false even when user allowed
+              try {
+                const has = os.Notifications.hasPermission?.();
+                console.log('hasPermission after request:', has);
+                resolve(!!has || !!accepted);
+              } catch {
+                resolve(!!accepted);
+              }
+            });
+          } catch (e) {
+            clearTimeout(timer);
+            try { resolve(!!os.Notifications.hasPermission?.()); } catch { resolve(false); }
+          }
+        });
+
+        console.log('Final granted status:', granted);
 
         if (!granted) {
-          // Request permission
-          console.log('Requesting native permission...');
-          granted = await new Promise((resolve) => {
-            const timer = setTimeout(async () => {
-              console.log('Request timed out - re-checking permission status');
-              const current = await checkNativePermission();
-              resolve(current);
-            }, 12000);
-
-            try {
-              os.Notifications.requestPermission(true, (accepted) => {
-                clearTimeout(timer);
-                console.log('requestPermission callback:', accepted);
-                resolve(!!accepted);
-              });
-            } catch (e) {
-              clearTimeout(timer);
-              console.warn('requestPermission error:', e);
-              // Still check actual status
-              checkNativePermission().then(resolve);
-            }
-          });
+          setError('Notifications are blocked. Go to Settings → Apps → Paws & Claws → Notifications and enable them, then tap Enable again.');
+          setLoading(false);
+          return;
         }
-      } else {
-        granted = Notification?.permission === 'granted';
-        if (!granted && window.OneSignal) {
-          const result = await window.OneSignal.Notifications.requestPermission();
-          granted = result === true;
-        }
-      }
 
-      console.log('Final permission status:', granted);
-
-      if (!granted) {
-        setError('Please go to Settings → Apps → Paws & Claws → Notifications, enable notifications, then tap Enable again.');
-        setLoading(false);
-        return;
-      }
-
-      // Register with OneSignal
-      if (isNative()) {
+        // Register user with OneSignal
         try {
           os.login(userId);
           console.log('Native OneSignal login:', userId);
         } catch (e) {
           console.warn('OneSignal login warning:', e);
         }
-      } else if (window.OneSignal) {
-        await window.OneSignal.login(userId).catch(() => {});
+
+      } else {
+        // Web browser
+        let granted = Notification?.permission === 'granted';
+        if (!granted && window.OneSignal) {
+          granted = await window.OneSignal.Notifications.requestPermission();
+        }
+        if (!granted) {
+          setError('Please allow notifications in your browser settings.');
+          setLoading(false);
+          return;
+        }
+        if (window.OneSignal) {
+          await window.OneSignal.login(userId).catch(() => {});
+        }
       }
 
-      console.log('Notifications enabled successfully!');
+      // Mark as set up in localStorage so we never ask again
+      localStorage.setItem(NOTIF_SETUP_KEY + '_' + userId, 'true');
+      console.log('Notifications enabled and saved to localStorage');
+
       setSuccess(true);
       setTimeout(() => onOpenChange(false), 1500);
 
@@ -123,6 +107,14 @@ export default function OnboardingNotificationDialog({ open, onOpenChange, userI
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSkip = () => {
+    // Also save skip so we don't ask every time
+    if (userId) {
+      localStorage.setItem(NOTIF_SETUP_KEY + '_' + userId, 'skipped');
+    }
+    onOpenChange(false);
   };
 
   return (
@@ -171,17 +163,16 @@ export default function OnboardingNotificationDialog({ open, onOpenChange, userI
               <p className="text-xs text-red-400">{error}</p>
             </div>
           )}
-
           {success && (
             <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 flex gap-2">
               <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-green-400">Notifications enabled! You'll receive pet reminders.</p>
+              <p className="text-xs text-green-400">Notifications enabled!</p>
             </div>
           )}
         </div>
 
         <div className="flex gap-3">
-          <Button onClick={() => onOpenChange(false)} variant="outline"
+          <Button onClick={handleSkip} variant="outline"
             className="flex-1 border-slate-700 text-slate-300 hover:bg-slate-800" disabled={loading}>
             Skip for Now
           </Button>
@@ -192,7 +183,6 @@ export default function OnboardingNotificationDialog({ open, onOpenChange, userI
               : 'Enable Notifications'}
           </Button>
         </div>
-
         <p className="text-xs text-slate-500 text-center mt-4">
           You can change these settings anytime in your preferences
         </p>

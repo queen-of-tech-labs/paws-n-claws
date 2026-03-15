@@ -6,6 +6,9 @@ import { initializeOneSignal } from '@/components/services/oneSignalService';
 
 const AuthContext = createContext();
 
+// localStorage key to remember if user already enabled notifications
+const NOTIF_SETUP_KEY = 'paws_notif_setup_done';
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -60,20 +63,28 @@ export const AuthProvider = ({ children }) => {
 
   const initializeAndPrompt = async (fullUser) => {
     try {
-      // Initialize OneSignal for all users
       await initializeOneSignal(fullUser.id);
       console.log('OneSignal initialized for user:', fullUser.id);
 
-      // Always show the notification prompt after login
-      // The dialog itself handles checking/requesting permission
-      // This avoids Samsung bugs with getPermissionAsync returning wrong values
-      setTimeout(() => {
-        console.log('Dispatching show-notification-prompt event');
-        window.dispatchEvent(new CustomEvent('show-notification-prompt', {
-          detail: { userId: fullUser.id }
-        }));
-      }, 2000);
-
+      // Only show the dialog if the user hasn't set up notifications yet
+      const alreadySetup = localStorage.getItem(NOTIF_SETUP_KEY + '_' + fullUser.id);
+      if (!alreadySetup) {
+        setTimeout(() => {
+          console.log('Showing notification prompt for first time');
+          window.dispatchEvent(new CustomEvent('show-notification-prompt', {
+            detail: { userId: fullUser.id }
+          }));
+        }, 2000);
+      } else {
+        // Already set up — just make sure device is registered silently
+        console.log('Notifications already set up for user, skipping prompt');
+        const isNative = !!(window.Capacitor?.isNativePlatform?.());
+        if (isNative) {
+          window.plugins?.OneSignal?.login(fullUser.id);
+        } else if (window.OneSignal) {
+          window.OneSignal.login(fullUser.id).catch(() => {});
+        }
+      }
     } catch (e) {
       console.warn('OneSignal init failed:', e);
     }
