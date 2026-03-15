@@ -7,25 +7,25 @@ import { Switch } from "@/components/ui/switch";
 import { Bell, Loader2, Check, Crown, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
-import { registerDevice } from "@/components/services/notificationPermissionService";
 
 const isNative = () => !!(window.Capacitor?.isNativePlatform?.());
 
-// Safe permission check with timeout — never blocks the page
-async function safeCheckPermission() {
-  if (!isNative()) return 'default';
+// Get permission using the most reliable method available
+function getNativePermission() {
   try {
-    return await Promise.race([
-      new Promise((resolve) => {
-        if (!window.plugins?.OneSignal) { resolve('default'); return; }
-        window.plugins.OneSignal.Notifications.getPermissionAsync((p) => {
-          resolve(p ? 'granted' : 'default');
-        });
-      }),
-      new Promise((resolve) => setTimeout(() => resolve('default'), 3000))
-    ]);
+    // Try synchronous permission check first
+    const os = window.plugins?.OneSignal;
+    if (!os) return null;
+    // hasPermission is synchronous on Android
+    if (typeof os.Notifications?.hasPermission === 'function') {
+      return os.Notifications.hasPermission() ? 'granted' : 'denied';
+    }
+    if (typeof os.Notifications?.permission !== 'undefined') {
+      return os.Notifications.permission ? 'granted' : 'denied';
+    }
+    return null;
   } catch {
-    return 'default';
+    return null;
   }
 }
 
@@ -39,8 +39,7 @@ export default function NotificationPreferences() {
     reminder_advance_days: 1
   });
   const [saved, setSaved] = useState(false);
-  const [permissionDenied, setPermissionDenied] = useState(false);
-  const [permissionAlreadyGranted, setPermissionAlreadyGranted] = useState(false);
+  const [permissionStatus, setPermissionStatus] = useState('unknown');
 
   useEffect(() => {
     const initialize = async () => {
@@ -54,15 +53,21 @@ export default function NotificationPreferences() {
           reminder_advance_days: u.reminder_advance_days || 1
         };
         if (isPremium && u.notification_email === undefined && u.notification_push === undefined) {
-          updatedPrefs = { notification_email: true, notification_push: true, reminder_advance_days: u.reminder_advance_days || 1 };
+          updatedPrefs = { notification_email: true, notification_push: true, reminder_advance_days: 1 };
           await api.auth.updateMe(updatedPrefs);
         }
         setPreferences(updatedPrefs);
 
-        // Check permission status in background — won't block page load
-        safeCheckPermission().then((status) => {
-          if (status === 'granted') setPermissionAlreadyGranted(true);
-        });
+        // Check permission after short delay to let plugins load
+        setTimeout(() => {
+          if (isNative()) {
+            const status = getNativePermission();
+            console.log('Native permission status:', status);
+            setPermissionStatus(status || 'unknown');
+          } else {
+            setPermissionStatus(Notification?.permission || 'default');
+          }
+        }, 1000);
 
       } catch (e) {
         console.error('Init error:', e);
@@ -75,67 +80,64 @@ export default function NotificationPreferences() {
 
   const handleEnableNotifications = async () => {
     setSaving(true);
-    setPermissionDenied(false);
     try {
       const currentUser = await api.auth.me();
 
       if (isNative()) {
-        // On native — check if already granted first
-        const currentStatus = await safeCheckPermission();
-        if (currentStatus === 'granted') {
-          await registerDevice(currentUser.id);
+        // Re-check permission synchronously
+        const status = getNativePermission();
+        console.log('Permission check before enable:', status);
+
+        if (status === 'granted' || status === null) {
+          // Either granted or we can't check — try to register anyway
+          try {
+            await new Promise(r => setTimeout(r, 500));
+            const subId = window.plugins?.OneSignal?.User?.pushSubscription?.id;
+            console.log('Subscription ID:', subId);
+            if (currentUser?.id) {
+              window.plugins?.OneSignal?.login(currentUser.id);
+            }
+          } catch (e) {
+            console.warn('Register error:', e);
+          }
           setPreferences(p => ({ ...p, notification_push: true }));
           await api.auth.updateMe({ ...preferences, notification_push: true });
-          setPermissionAlreadyGranted(true);
-          setSaved(true);
-          setTimeout(() => setSaved(false), 3000);
-          setSaving(false);
-          return;
-        }
-
-        // Request permission with timeout
-        const permitted = await Promise.race([
-          new Promise((resolve) => {
-            window.plugins?.OneSignal?.Notifications?.requestPermission(true, (accepted) => {
-              resolve(accepted === true);
-            });
-          }),
-          new Promise((resolve) => setTimeout(() => resolve(null), 20000))
-        ]);
-
-        // If timed out, check actual status
-        const finalStatus = permitted === null
-          ? await safeCheckPermission()
-          : (permitted ? 'granted' : 'denied');
-
-        if (finalStatus === 'granted') {
-          await registerDevice(currentUser.id);
-          setPreferences(p => ({ ...p, notification_push: true }));
-          await api.auth.updateMe({ ...preferences, notification_push: true });
-          setPermissionAlreadyGranted(true);
+          setPermissionStatus('granted');
           setSaved(true);
           setTimeout(() => setSaved(false), 3000);
         } else {
-          setPermissionDenied(true);
-          setPreferences(p => ({ ...p, notification_push: false }));
+          // Truly denied — request it
+          window.plugins?.OneSignal?.Notifications?.requestPermission(true, async (accepted) => {
+            if (accepted) {
+              if (currentUser?.id) window.plugins?.OneSignal?.login(currentUser.id);
+              setPreferences(p => ({ ...p, notification_push: true }));
+              await api.auth.updateMe({ ...preferences, notification_push: true });
+              setPermissionStatus('granted');
+              setSaved(true);
+              setTimeout(() => setSaved(false), 3000);
+            } else {
+              setPermissionStatus('denied');
+            }
+            setSaving(false);
+          });
+          return; // exit early, setSaving handled in callback
         }
       } else {
         // Web browser
-        if (!window.OneSignal) { setPermissionDenied(true); setSaving(false); return; }
+        if (!window.OneSignal) { setSaving(false); return; }
         const granted = await window.OneSignal.Notifications.requestPermission();
         if (granted) {
-          await registerDevice(currentUser.id);
           setPreferences(p => ({ ...p, notification_push: true }));
           await api.auth.updateMe({ ...preferences, notification_push: true });
+          setPermissionStatus('granted');
           setSaved(true);
           setTimeout(() => setSaved(false), 3000);
         } else {
-          setPermissionDenied(true);
+          setPermissionStatus('denied');
         }
       }
     } catch (error) {
       console.error('Failed to enable notifications:', error);
-      setPermissionDenied(true);
     } finally {
       setSaving(false);
     }
@@ -159,6 +161,8 @@ export default function NotificationPreferences() {
   }
 
   const isPremium = user?.role === 'admin' || user?.premium_subscriber;
+  const isGranted = permissionStatus === 'granted';
+  const isDenied = permissionStatus === 'denied';
 
   return (
     <div className="p-6 lg:p-8 max-w-2xl mx-auto">
@@ -219,7 +223,7 @@ export default function NotificationPreferences() {
                     className="ml-4"
                   />
                   {isPremium && preferences.notification_push && (
-                    permissionAlreadyGranted ? (
+                    isGranted ? (
                       <div className="flex items-center gap-1 text-green-400 text-sm font-medium">
                         <Check className="w-4 h-4" />
                         Enabled
@@ -241,13 +245,13 @@ export default function NotificationPreferences() {
                   )}
                 </div>
               </div>
-              {permissionDenied && (
+              {isDenied && (
                 <div className="mt-2 flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
                   <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
                   <p className="text-sm text-red-400">
                     {isNative()
-                      ? 'Notification permission denied. Please go to phone Settings → Apps → Paws & Claws → Notifications and enable them.'
-                      : 'Notification permission denied. Please enable notifications in your browser settings.'}
+                      ? 'Please go to phone Settings → Apps → Paws & Claws → Notifications and enable them.'
+                      : 'Please enable notifications in your browser settings.'}
                   </p>
                 </div>
               )}
