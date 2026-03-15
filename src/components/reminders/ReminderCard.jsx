@@ -353,7 +353,7 @@ export default function ReminderCard({ reminder, petName, onAcknowledge, onCompl
             </div>
             </div>
 
-            {reminder.status === "pending" && !isEditMode && (
+            {["pending", "active", "acknowledged"].includes(reminder.status) && !isEditMode && (
             <div className="flex items-center gap-2 px-4 py-3 border-t border-slate-700/50">
             <Button
              size="sm"
@@ -514,7 +514,7 @@ export default function ReminderCard({ reminder, petName, onAcknowledge, onCompl
           )}
 
           {/* Action Buttons */}
-          {reminder.status === "pending" && !isEditMode && (
+          {["pending", "active", "acknowledged"].includes(reminder.status) && !isEditMode && (
             <div className="flex items-center gap-2 pt-2 border-t border-slate-700/50 min-w-0">
               <Button
                 size="sm"
@@ -554,8 +554,8 @@ export default function ReminderCard({ reminder, petName, onAcknowledge, onCompl
             </div>
           )}
 
-          {/* Delete Button for Completed Reminders */}
-          {reminder.status === "completed" && onDelete && (
+          {/* Delete Button - always show in expanded view */}
+          {onDelete && reminder.status !== "pending" && (
             <div className="flex pt-2 border-t border-slate-700/50">
               <Button
                 size="sm"

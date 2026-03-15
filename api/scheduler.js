@@ -154,6 +154,15 @@ export default async function handler(req, res) {
 
         const notifSentToday = reminder.last_notified_date === localTodayStr;
 
+        // Don't fire for reminders created in the last 10 minutes
+        // This prevents immediate notification when a reminder is just saved
+        const createdAt = reminder.createdAt?.toDate?.() || reminder.createdAt;
+        const createdRecently = createdAt && (now - new Date(createdAt)) < 10 * 60 * 1000;
+        if (createdRecently) {
+          console.log(`Skipping recently created reminder: ${reminder.title}`);
+          continue;
+        }
+
         // ── TYPE 1: MEDICATION reminders ──
         // medication_times stores LOCAL times (e.g. "05:45", "16:55")
         // Convert each to UTC and check if we're within 5-min window
