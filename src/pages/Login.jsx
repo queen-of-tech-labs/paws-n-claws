@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fbAuth, auth as authHelpers } from '@/api/firebaseClient';
 import { isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
@@ -14,9 +14,9 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handlePostLoginRedirect = async () => {
-    // Check if user was trying to upgrade
+  const handlePostLoginRedirect = useCallback(async () => {
     const pendingAction = window.localStorage.getItem('pendingAction');
+    console.log('Post login redirect, pendingAction:', pendingAction);
     if (pendingAction === 'upgrade') {
       window.localStorage.removeItem('pendingAction');
       try {
@@ -40,9 +40,10 @@ export default function LoginPage() {
       }
     }
     navigate('/dashboard');
-  };
+  }, [navigate]);
 
   useEffect(() => {
+    // Handle magic link callback
     if (isSignInWithEmailLink(fbAuth, window.location.href)) {
       let emailForSignIn = window.localStorage.getItem('emailForSignIn');
       if (!emailForSignIn) {
@@ -60,10 +61,11 @@ export default function LoginPage() {
         });
     }
 
+    // Already logged in
     fbAuth.authStateReady().then(() => {
       if (fbAuth.currentUser) handlePostLoginRedirect();
     });
-  }, [navigate]);
+  }, [handlePostLoginRedirect]);
 
   const handleMagicLink = async (e) => {
     e.preventDefault();
