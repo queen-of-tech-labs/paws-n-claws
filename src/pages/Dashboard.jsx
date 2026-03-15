@@ -76,14 +76,16 @@ export default function Dashboard() {
     const timer = setTimeout(async () => {
       if (notifFiredRef.current) return;
       notifFiredRef.current = true;
-      console.log('Firing notification check — reminders:', reminders.length, 'careLogs:', careLogs.length);
+      console.log('Firing notification check — reminders:', reminders.length, 'careLogs:', careLogs.length, 'user.email:', user.email);
       if (reminders.length > 0) {
+        console.log('First reminder:', JSON.stringify(reminders[0]));
         await checkAndNotifyDueReminders({ reminders, pets, userId: user.id });
       }
       if (careLogs.length > 0) {
+        console.log('First careLog:', JSON.stringify(careLogs[0]));
         await checkAndNotifyOverdueCare({ careLogs, pets, userId: user.id });
       }
-    }, 4000); // 4 second delay gives all queries time to complete
+    }, 10000); // 10 second delay
     return () => clearTimeout(timer);
   }, [user?.id, pets.length]);
 
