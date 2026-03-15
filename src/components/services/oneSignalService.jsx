@@ -1,6 +1,8 @@
 /**
  * OneSignal Push Notification Service
  * App ID: 83fd3bf4-a60e-4651-8a59-6141189b6831
+ * Native Android via onesignal-cordova-plugin
+ * Web fallback via OneSignal Web SDK
  */
 
 export const ONESIGNAL_APP_ID = '83fd3bf4-a60e-4651-8a59-6141189b6831';
@@ -8,15 +10,22 @@ export const ONESIGNAL_APP_ID = '83fd3bf4-a60e-4651-8a59-6141189b6831';
 let initialized = false;
 let initPromise = null;
 
+const isNative = () => !!(window.Capacitor?.isNativePlatform?.());
+
 // ─────────────────────────────────────────────
 // INITIALIZATION
 // ─────────────────────────────────────────────
 
 export async function initializeOneSignal(userId = null) {
   if (initialized) {
-    // Already initialized — just make sure user is logged in
-    if (userId && window.OneSignal) {
-      try { await window.OneSignal.login(userId); } catch {}
+    if (userId) {
+      try {
+        if (isNative()) {
+          window.plugins?.OneSignal?.login(userId);
+        } else if (window.OneSignal) {
+          await window.OneSignal.login(userId);
+        }
+      } catch {}
     }
     return;
   }
@@ -24,52 +33,78 @@ export async function initializeOneSignal(userId = null) {
 
   initPromise = (async () => {
     try {
-      // Load SDK if not already present
-      if (!window.OneSignal) {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
-          script.async = true;
-          script.onload = resolve;
-          script.onerror = reject;
-          document.head.appendChild(script);
+      if (isNative()) {
+        // ── NATIVE ANDROID ──
+        await new Promise((resolve) => {
+          const check = setInterval(() => {
+            if (window.plugins?.OneSignal) {
+              clearInterval(check);
+              resolve();
+            }
+          }, 100);
+          setTimeout(() => { clearInterval(check); resolve(); }, 5000);
         });
 
-        // Wait for SDK to be ready
-        let attempts = 0;
-        while (!window.OneSignal && attempts < 50) {
-          await new Promise(r => setTimeout(r, 100));
-          attempts++;
-        }
-        if (!window.OneSignal) throw new Error('OneSignal SDK failed to load');
-      }
+        if (!window.plugins?.OneSignal) throw new Error('OneSignal native plugin not found');
 
-      await window.OneSignal.init({
-        appId: ONESIGNAL_APP_ID,
-        allowLocalhostAsSecureOrigin: true,
-        serviceWorkerPath: '/OneSignalSDKWorker.js',
-        serviceWorkerParam: { scope: '/' },
-        notifyButton: { enable: false },
-        welcomeNotification: { disable: true },
-      });
+        window.plugins.OneSignal.initialize(ONESIGNAL_APP_ID);
 
-      // Login user AFTER init — catch 409 conflicts gracefully
-      if (userId) {
-        try {
-          await window.OneSignal.login(userId);
-        } catch (loginErr) {
-          // 409 means this external_id is already linked to another subscription
-          // This is safe to ignore — the user is still subscribed
-          if (loginErr?.message?.includes('409') || loginErr?.status === 409) {
-            console.warn('OneSignal login 409 - user already linked, continuing');
-          } else {
-            console.warn('OneSignal login warning:', loginErr?.message);
+        window.plugins.OneSignal.Notifications.addEventListener('click', (event) => {
+          console.log('OneSignal notification clicked:', event);
+        });
+
+        if (userId) {
+          try { window.plugins.OneSignal.login(userId); } catch (e) {
+            console.warn('OneSignal native login warning:', e);
           }
         }
+
+        console.log('OneSignal native initialized');
+      } else {
+        // ── WEB BROWSER FALLBACK ──
+        if (!window.OneSignal) {
+          await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
+            script.async = true;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+
+          let attempts = 0;
+          while (!window.OneSignal && attempts < 50) {
+            await new Promise(r => setTimeout(r, 100));
+            attempts++;
+          }
+          if (!window.OneSignal) throw new Error('OneSignal SDK failed to load');
+        }
+
+        await window.OneSignal.init({
+          appId: ONESIGNAL_APP_ID,
+          allowLocalhostAsSecureOrigin: true,
+          serviceWorkerPath: '/OneSignalSDKWorker.js',
+          serviceWorkerParam: { scope: '/' },
+          notifyButton: { enable: false },
+          welcomeNotification: { disable: true },
+        });
+
+        if (userId) {
+          try {
+            await window.OneSignal.login(userId);
+          } catch (loginErr) {
+            if (loginErr?.message?.includes('409') || loginErr?.status === 409) {
+              console.warn('OneSignal login 409 - user already linked, continuing');
+            } else {
+              console.warn('OneSignal login warning:', loginErr?.message);
+            }
+          }
+        }
+
+        console.log('OneSignal web initialized');
       }
 
       initialized = true;
-      console.log('OneSignal initialized');
     } catch (err) {
       console.error('OneSignal init failed:', err);
       initPromise = null;
@@ -85,8 +120,15 @@ export async function initializeOneSignal(userId = null) {
 // ─────────────────────────────────────────────
 
 export async function getPermissionStatus() {
-  if (!window.OneSignal) return Notification?.permission ?? 'default';
   try {
+    if (isNative()) {
+      return new Promise((resolve) => {
+        window.plugins?.OneSignal?.Notifications?.getPermissionAsync((permission) => {
+          resolve(permission ? 'granted' : 'default');
+        });
+      });
+    }
+    if (!window.OneSignal) return Notification?.permission ?? 'default';
     return window.OneSignal.Notifications.permission ? 'granted' : 'default';
   } catch {
     return Notification?.permission ?? 'default';
@@ -94,8 +136,18 @@ export async function getPermissionStatus() {
 }
 
 export async function requestPermission(userId) {
-  if (!window.OneSignal) return false;
   try {
+    if (isNative()) {
+      return new Promise((resolve) => {
+        window.plugins?.OneSignal?.Notifications?.requestPermission(true, (accepted) => {
+          if (accepted && userId) {
+            try { window.plugins.OneSignal.login(userId); } catch {}
+          }
+          resolve(accepted);
+        });
+      });
+    }
+    if (!window.OneSignal) return false;
     const granted = await window.OneSignal.Notifications.requestPermission();
     if (granted && userId) {
       await new Promise(r => setTimeout(r, 500));
@@ -110,6 +162,13 @@ export async function requestPermission(userId) {
 
 export async function getSubscriptionId() {
   try {
+    if (isNative()) {
+      return new Promise((resolve) => {
+        window.plugins?.OneSignal?.User?.pushSubscription?.getIdAsync?.((id) => {
+          resolve(id ?? null);
+        }) ?? resolve(null);
+      });
+    }
     return window.OneSignal?.User?.pushSubscription?.id ?? null;
   } catch {
     return null;
@@ -125,14 +184,19 @@ export function isOneSignalReady() {
 // ─────────────────────────────────────────────
 
 export async function setUserTags({ userId, email, isPremium, role }) {
-  if (!window.OneSignal) return;
   try {
-    await window.OneSignal.User.addTags({
+    const tags = {
       user_id: userId ?? '',
       email: email ?? '',
       is_premium: isPremium ? 'true' : 'false',
       role: role ?? 'user',
-    });
+    };
+
+    if (isNative()) {
+      window.plugins?.OneSignal?.User?.addTags(tags);
+    } else if (window.OneSignal) {
+      await window.OneSignal.User.addTags(tags);
+    }
   } catch (err) {
     console.warn('Failed to set OneSignal tags:', err?.message);
   }
