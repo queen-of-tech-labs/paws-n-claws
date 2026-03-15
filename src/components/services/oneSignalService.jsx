@@ -13,6 +13,28 @@ let initPromise = null;
 const isNative = () => !!(window.Capacitor?.isNativePlatform?.());
 
 // ─────────────────────────────────────────────
+// PERMISSION HELPERS
+// ─────────────────────────────────────────────
+
+// Fast synchronous check — never blocks, never hangs
+function hasNotificationPermission() {
+  try {
+    if (isNative()) {
+      const os = window.plugins?.OneSignal;
+      if (!os) return true; // assume ok if plugin not ready yet
+      if (typeof os.Notifications?.hasPermission === 'function') {
+        return os.Notifications.hasPermission();
+      }
+      // Can't check — assume granted so notifications aren't silently skipped
+      return true;
+    }
+    return Notification?.permission === 'granted';
+  } catch {
+    return true; // fail open so notifications aren't silently dropped
+  }
+}
+
+// ─────────────────────────────────────────────
 // INITIALIZATION
 // ─────────────────────────────────────────────
 
@@ -191,7 +213,6 @@ export async function setUserTags({ userId, email, isPremium, role }) {
       is_premium: isPremium ? 'true' : 'false',
       role: role ?? 'user',
     };
-
     if (isNative()) {
       window.plugins?.OneSignal?.User?.addTags(tags);
     } else if (window.OneSignal) {
@@ -261,12 +282,16 @@ export async function sendAdminBroadcast({ title, body, url = '/' }) {
 }
 
 // ─────────────────────────────────────────────
-// AUTO-CHECK ON LOGIN
+// AUTO-CHECK ON APP OPEN
+// Uses synchronous permission check — never hangs
 // ─────────────────────────────────────────────
 
 export async function checkAndNotifyDueReminders({ reminders = [], pets = [], userId }) {
-  const permission = await getPermissionStatus();
-  if (permission !== 'granted') return;
+  // Use fast synchronous check — no async callback that can hang
+  if (!hasNotificationPermission()) {
+    console.log('Skipping reminder notifications — permission not granted');
+    return;
+  }
 
   const todayStr = new Date().toISOString().split('T')[0];
   const petMap = {};
@@ -276,6 +301,8 @@ export async function checkAndNotifyDueReminders({ reminders = [], pets = [], us
     r.due_date && r.due_date <= todayStr &&
     r.status !== 'completed' && r.status !== 'acknowledged'
   );
+
+  console.log(`Found ${due.length} due reminders`);
 
   for (const reminder of due.slice(0, 3)) {
     const pet = petMap[reminder.pet_id];
@@ -299,8 +326,11 @@ export async function checkAndNotifyDueReminders({ reminders = [], pets = [], us
 }
 
 export async function checkAndNotifyOverdueCare({ careLogs = [], pets = [], userId }) {
-  const permission = await getPermissionStatus();
-  if (permission !== 'granted') return;
+  // Use fast synchronous check — no async callback that can hang
+  if (!hasNotificationPermission()) {
+    console.log('Skipping care notifications — permission not granted');
+    return;
+  }
 
   const todayStr = new Date().toISOString().split('T')[0];
   const petMap = {};
@@ -309,6 +339,8 @@ export async function checkAndNotifyOverdueCare({ careLogs = [], pets = [], user
   const overdue = careLogs.filter(c =>
     c.next_due_date && c.next_due_date < todayStr && c.status !== 'completed'
   );
+
+  console.log(`Found ${overdue.length} overdue care logs`);
 
   for (const log of overdue.slice(0, 2)) {
     const pet = petMap[log.pet_id];

@@ -108,11 +108,11 @@ export default function Layout({ children, currentPageName }) {
         const today = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
         const uid = authUser.id || authUser.uid;
         const notifKey = `notif_checked_${uid}_${today}`;
-        const alreadyCheckedToday = sessionStorage.getItem(notifKey);
+        const alreadyCheckedToday = localStorage.getItem(notifKey);
 
         if (!alreadyCheckedToday) {
           // Mark as checked immediately so fast navigations can't trigger a second run
-          sessionStorage.setItem(notifKey, '1');
+          localStorage.setItem(notifKey, '1');
 
           // Small delay to let queries settle after first page load
           setTimeout(async () => {
