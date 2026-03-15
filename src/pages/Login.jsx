@@ -14,10 +14,16 @@ export default function LoginPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // If already logged in, redirect appropriately
+    console.log('LOGIN PAGE MOUNTED');
+    console.log('pendingAction:', window.localStorage.getItem('pendingAction'));
+    console.log('currentUser on mount:', fbAuth.currentUser?.email);
+
+    // If already logged in on mount
     fbAuth.authStateReady().then(() => {
+      console.log('authStateReady, currentUser:', fbAuth.currentUser?.email);
       if (fbAuth.currentUser) {
         const pending = window.localStorage.getItem('pendingAction');
+        console.log('Already logged in, pending:', pending);
         if (pending === 'upgrade') {
           window.localStorage.removeItem('pendingAction');
           navigate('/account');
@@ -27,12 +33,10 @@ export default function LoginPage() {
       }
     });
 
-    // Handle magic link callback
+    // Handle magic link
     if (isSignInWithEmailLink(fbAuth, window.location.href)) {
       let emailForSignIn = window.localStorage.getItem('emailForSignIn');
-      if (!emailForSignIn) {
-        emailForSignIn = window.prompt('Please provide your email for confirmation');
-      }
+      if (!emailForSignIn) emailForSignIn = window.prompt('Please provide your email');
       setLoading(true);
       signInWithEmailLink(fbAuth, emailForSignIn, window.location.href)
         .then(() => {
@@ -45,28 +49,26 @@ export default function LoginPage() {
             navigate('/dashboard');
           }
         })
-        .catch((err) => {
-          setError(err.message);
-          setLoading(false);
-        });
+        .catch((err) => { setError(err.message); setLoading(false); });
     }
   }, [navigate]);
 
   const handleGoogle = async () => {
     setLoading(true);
     setError('');
+    const pending = window.localStorage.getItem('pendingAction');
+    console.log('handleGoogle called, pending:', pending);
     try {
-      const pending = window.localStorage.getItem('pendingAction');
       await authHelpers.redirectToLogin('/dashboard');
-      // Wait for Firebase auth state to confirm login
+      console.log('signInWithPopup completed, user:', fbAuth.currentUser?.email);
+      // Wait for auth state to update
       await new Promise((resolve) => {
-        const unsubscribe = fbAuth.onAuthStateChanged((user) => {
-          if (user) {
-            unsubscribe();
-            resolve();
-          }
+        const unsub = onAuthStateChanged(fbAuth, (u) => {
+          console.log('onAuthStateChanged fired, user:', u?.email);
+          if (u) { unsub(); resolve(); }
         });
       });
+      console.log('Auth confirmed, navigating. pending:', pending);
       if (pending === 'upgrade') {
         window.localStorage.removeItem('pendingAction');
         navigate('/account');
@@ -74,6 +76,7 @@ export default function LoginPage() {
         navigate('/dashboard');
       }
     } catch (err) {
+      console.error('Google login error:', err);
       setError(err.message);
       setLoading(false);
     }
@@ -103,7 +106,6 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold text-white">Paws & Claws</h1>
           <p className="text-slate-400 text-sm mt-1">Sign in to your account</p>
         </div>
-
         <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8">
           {sent ? (
             <div className="text-center">
@@ -120,11 +122,8 @@ export default function LoginPage() {
             </div>
           ) : (
             <>
-              <button
-                onClick={handleGoogle}
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white hover:bg-slate-100 text-slate-900 rounded-xl font-medium transition mb-6 disabled:opacity-50"
-              >
+              <button onClick={handleGoogle} disabled={loading}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white hover:bg-slate-100 text-slate-900 rounded-xl font-medium transition mb-6 disabled:opacity-50">
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -133,24 +132,17 @@ export default function LoginPage() {
                 </svg>
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Continue with Google'}
               </button>
-
               <div className="flex items-center gap-3 mb-6">
                 <div className="flex-1 h-px bg-slate-800" />
                 <span className="text-xs text-slate-500">or sign in with email</span>
                 <div className="flex-1 h-px bg-slate-800" />
               </div>
-
               <form onSubmit={handleMagicLink} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">Email address</label>
-                  <Input
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
+                  <Input type="email" placeholder="you@example.com" value={email}
                     onChange={e => setEmail(e.target.value)}
-                    className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
-                    required
-                  />
+                    className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500" required />
                 </div>
                 {error && <p className="text-sm text-red-400">{error}</p>}
                 <Button type="submit" disabled={loading || !email} className="w-full bg-blue-600 hover:bg-blue-700">
@@ -161,7 +153,6 @@ export default function LoginPage() {
             </>
           )}
         </div>
-
         <p className="text-center text-xs text-slate-500 mt-6">
           By signing in, you agree to our Terms of Service and Privacy Policy.
         </p>
