@@ -43,11 +43,6 @@ export default async function handler(req, res) {
         },
       };
 
-      // Add text query if provided
-      if (query) {
-        body.rankPreference = 'RELEVANCE';
-      }
-
       const response = await fetch(url, {
         method: 'POST',
         headers: {
