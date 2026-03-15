@@ -55,13 +55,13 @@ export default function Dashboard() {
 
   const { data: careLogs = [] } = useQuery({
     queryKey: ["careLogs"],
-    queryFn: () => user ? api.entities.CareLog.filter({ created_by: user.email }, "-date", 20) : [],
+    queryFn: () => user ? api.entities.CareLog.filterOnly({ created_by: user.email }) : [],
     enabled: !!user,
   });
 
   const { data: reminders = [] } = useQuery({
     queryKey: ["reminders"],
-    queryFn: () => user?.premium_subscriber || user?.role === 'admin' ? api.entities.Reminder.filter({ created_by: user.email }, "-due_date") : [],
+    queryFn: () => user?.premium_subscriber || user?.role === 'admin' ? api.entities.Reminder.filterOnly({ created_by: user.email }) : [],
     enabled: !!user && (user?.premium_subscriber || user?.role === 'admin'),
   });
 

@@ -140,7 +140,7 @@ function normalizeOrder(orderStr = '-created_at') {
   const desc = orderStr.startsWith('-');
   const field = orderStr.replace(/^-/, '');
   // Normalise common snake_case field names to Firestore camelCase
-  const fieldMap = { created_at: 'createdAt', created_date: 'createdAt', due_date: 'dueDate' };
+  const fieldMap = { created_at: 'createdAt', created_date: 'createdAt' };
   return { field: fieldMap[field] || field, direction: desc ? 'desc' : 'asc' };
 }
 
