@@ -7,6 +7,35 @@ import { Bell, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const isNative = () => !!(window.Capacitor?.isNativePlatform?.());
 
+// Check permission using Capacitor's native bridge directly
+// bypassing OneSignal's buggy getPermissionAsync on Samsung
+async function checkNativePermission() {
+  try {
+    // Try Capacitor's local notifications plugin first
+    if (window.Capacitor?.Plugins?.LocalNotifications) {
+      const result = await window.Capacitor.Plugins.LocalNotifications.checkPermissions();
+      console.log('LocalNotifications permission:', result?.display);
+      return result?.display === 'granted';
+    }
+  } catch (e) {
+    console.warn('LocalNotifications check failed:', e);
+  }
+
+  // Fallback: try OneSignal's own permission check
+  try {
+    const os = window.plugins?.OneSignal;
+    if (os?.Notifications?.hasPermission) {
+      const result = os.Notifications.hasPermission();
+      console.log('OneSignal hasPermission (sync):', result);
+      return !!result;
+    }
+  } catch (e) {
+    console.warn('OneSignal hasPermission failed:', e);
+  }
+
+  return false;
+}
+
 export default function OnboardingNotificationDialog({ open, onOpenChange, userId }) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -18,79 +47,65 @@ export default function OnboardingNotificationDialog({ open, onOpenChange, userI
     console.log('User clicked Enable Notifications');
 
     try {
+      const os = window.plugins?.OneSignal;
+      if (!os && isNative()) {
+        setError('Notification service not available. Please restart the app.');
+        setLoading(false);
+        return;
+      }
+
+      // Check current permission status
       let granted = false;
 
       if (isNative()) {
-        const os = window.plugins?.OneSignal;
-        if (!os) {
-          setError('Notification service not available. Please restart the app.');
-          setLoading(false);
-          return;
-        }
+        granted = await checkNativePermission();
+        console.log('Native permission check result:', granted);
 
-        // STEP 1: Check if already granted (user may have set it in Settings)
-        granted = await new Promise((resolve) => {
-          try {
-            const timer = setTimeout(() => resolve(false), 3000);
-            os.Notifications.getPermissionAsync((p) => {
-              clearTimeout(timer);
-              console.log('Current permission status:', p);
-              resolve(!!p);
-            });
-          } catch { resolve(false); }
-        });
-
-        console.log('Permission already granted:', granted);
-
-        // STEP 2: If not granted, try requesting it
         if (!granted) {
+          // Request permission
+          console.log('Requesting native permission...');
           granted = await new Promise((resolve) => {
             const timer = setTimeout(async () => {
-              // Timed out — check status one more time
-              try {
-                os.Notifications.getPermissionAsync((p) => resolve(!!p));
-              } catch { resolve(false); }
-            }, 10000);
+              console.log('Request timed out - re-checking permission status');
+              const current = await checkNativePermission();
+              resolve(current);
+            }, 12000);
 
             try {
               os.Notifications.requestPermission(true, (accepted) => {
                 clearTimeout(timer);
-                console.log('Permission request result:', accepted);
+                console.log('requestPermission callback:', accepted);
                 resolve(!!accepted);
               });
             } catch (e) {
               clearTimeout(timer);
-              resolve(false);
+              console.warn('requestPermission error:', e);
+              // Still check actual status
+              checkNativePermission().then(resolve);
             }
           });
         }
-
       } else {
-        // Web browser
-        if (!window.OneSignal) {
-          setError('Notification service not ready. Please refresh.');
-          setLoading(false);
-          return;
-        }
         granted = Notification?.permission === 'granted';
-        if (!granted) {
+        if (!granted && window.OneSignal) {
           const result = await window.OneSignal.Notifications.requestPermission();
           granted = result === true;
         }
       }
 
+      console.log('Final permission status:', granted);
+
       if (!granted) {
-        setError('Notifications are blocked. Please go to Settings → Apps → Paws & Claws → Notifications and enable them, then come back and tap Enable again.');
+        setError('Please go to Settings → Apps → Paws & Claws → Notifications, enable notifications, then tap Enable again.');
         setLoading(false);
         return;
       }
 
-      // STEP 3: Register with OneSignal
-      console.log('Permission granted - registering device');
+      // Register with OneSignal
       if (isNative()) {
         try {
-          window.plugins?.OneSignal?.login(userId);
-          console.log('Native device registered with OneSignal');
+          os.login(userId);
+          console.log('Native OneSignal login:', userId);
         } catch (e) {
           console.warn('OneSignal login warning:', e);
         }

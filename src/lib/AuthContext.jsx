@@ -27,14 +27,29 @@ export const AuthProvider = ({ children }) => {
       let profile = {};
       if (profileSnap.exists()) { profile = profileSnap.data(); }
       else {
-        profile = { id: firebaseUser.uid, email: firebaseUser.email, full_name: firebaseUser.displayName || firebaseUser.email?.split('@')[0], role: 'user', premium_subscriber: false, pet_limit: 2, account_status: 'active', createdAt: serverTimestamp() };
+        profile = {
+          id: firebaseUser.uid,
+          email: firebaseUser.email,
+          full_name: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
+          role: 'user',
+          premium_subscriber: false,
+          pet_limit: 2,
+          account_status: 'active',
+          createdAt: serverTimestamp(),
+        };
         await setDoc(profileRef, profile);
       }
-      const fullUser = { id: firebaseUser.uid, email: firebaseUser.email, full_name: firebaseUser.displayName || profile.full_name, photo_url: firebaseUser.photoURL, ...profile };
+      const fullUser = {
+        id: firebaseUser.uid,
+        email: firebaseUser.email,
+        full_name: firebaseUser.displayName || profile.full_name,
+        photo_url: firebaseUser.photoURL,
+        ...profile,
+      };
       setUser(fullUser);
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
-      initializeAndCheckPermission(fullUser);
+      initializeAndPrompt(fullUser);
     } catch (error) {
       console.error('Error loading user profile:', error);
       setUser({ id: firebaseUser.uid, email: firebaseUser.email });
@@ -43,43 +58,37 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const initializeAndCheckPermission = async (fullUser) => {
+  const initializeAndPrompt = async (fullUser) => {
     try {
-      const isNative = !!(window.Capacitor?.isNativePlatform?.());
+      // Initialize OneSignal for all users
       await initializeOneSignal(fullUser.id);
       console.log('OneSignal initialized for user:', fullUser.id);
-      let permissionGranted = false;
-      if (isNative) {
-        permissionGranted = await new Promise((resolve) => {
-          try {
-            const timer = setTimeout(() => resolve(false), 3000);
-            window.plugins?.OneSignal?.Notifications?.getPermissionAsync?.((p) => {
-              clearTimeout(timer);
-              resolve(!!p);
-            }) ?? resolve(false);
-          } catch { resolve(false); }
-        });
-      } else {
-        permissionGranted = Notification?.permission === 'granted';
-      }
-      console.log('Permission granted:', permissionGranted);
-      if (!permissionGranted) {
+
+      // Always show the notification prompt after login
+      // The dialog itself handles checking/requesting permission
+      // This avoids Samsung bugs with getPermissionAsync returning wrong values
+      setTimeout(() => {
         console.log('Dispatching show-notification-prompt event');
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent('show-notification-prompt', { detail: { userId: fullUser.id } }));
-        }, 2000);
-      } else {
-        if (isNative) { window.plugins?.OneSignal?.login(fullUser.id); }
-        else if (window.OneSignal) { window.OneSignal.login(fullUser.id).catch(() => {}); }
-      }
-    } catch (e) { console.warn('OneSignal init failed:', e); }
+        window.dispatchEvent(new CustomEvent('show-notification-prompt', {
+          detail: { userId: fullUser.id }
+        }));
+      }, 2000);
+
+    } catch (e) {
+      console.warn('OneSignal init failed:', e);
+    }
   };
 
   const logout = async (redirectTo) => { await authHelpers.logout(redirectTo); };
   const navigateToLogin = () => { window.location.href = '/login'; };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoadingAuth, isLoadingPublicSettings: false, authError, appPublicSettings: null, logout, navigateToLogin }}>
+    <AuthContext.Provider value={{
+      user, isAuthenticated, isLoadingAuth,
+      isLoadingPublicSettings: false,
+      authError, appPublicSettings: null,
+      logout, navigateToLogin,
+    }}>
       {children}
     </AuthContext.Provider>
   );
