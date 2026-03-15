@@ -7,9 +7,27 @@ import { Switch } from "@/components/ui/switch";
 import { Bell, Loader2, Check, Crown, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
-import { checkNotificationPermission, registerDevice } from "@/components/services/notificationPermissionService";
+import { registerDevice } from "@/components/services/notificationPermissionService";
 
 const isNative = () => !!(window.Capacitor?.isNativePlatform?.());
+
+// Safe permission check with timeout — never blocks the page
+async function safeCheckPermission() {
+  if (!isNative()) return 'default';
+  try {
+    return await Promise.race([
+      new Promise((resolve) => {
+        if (!window.plugins?.OneSignal) { resolve('default'); return; }
+        window.plugins.OneSignal.Notifications.getPermissionAsync((p) => {
+          resolve(p ? 'granted' : 'default');
+        });
+      }),
+      new Promise((resolve) => setTimeout(() => resolve('default'), 3000))
+    ]);
+  } catch {
+    return 'default';
+  }
+}
 
 export default function NotificationPreferences() {
   const [user, setUser] = useState(null);
@@ -25,28 +43,34 @@ export default function NotificationPreferences() {
   const [permissionAlreadyGranted, setPermissionAlreadyGranted] = useState(false);
 
   useEffect(() => {
-    api.auth.me().then(async (u) => {
-      setUser(u);
-      const isPremium = u?.role === 'admin' || u?.premium_subscriber;
-      let updatedPrefs = {
-        notification_email: u.notification_email !== false,
-        notification_push: u.notification_push !== false,
-        reminder_advance_days: u.reminder_advance_days || 1
-      };
-      if (isPremium && u.notification_email === undefined && u.notification_push === undefined) {
-        updatedPrefs = { notification_email: true, notification_push: true, reminder_advance_days: u.reminder_advance_days || 1 };
-        await api.auth.updateMe(updatedPrefs);
-      }
-      setPreferences(updatedPrefs);
+    const initialize = async () => {
+      try {
+        const u = await api.auth.me();
+        setUser(u);
+        const isPremium = u?.role === 'admin' || u?.premium_subscriber;
+        let updatedPrefs = {
+          notification_email: u.notification_email !== false,
+          notification_push: u.notification_push !== false,
+          reminder_advance_days: u.reminder_advance_days || 1
+        };
+        if (isPremium && u.notification_email === undefined && u.notification_push === undefined) {
+          updatedPrefs = { notification_email: true, notification_push: true, reminder_advance_days: u.reminder_advance_days || 1 };
+          await api.auth.updateMe(updatedPrefs);
+        }
+        setPreferences(updatedPrefs);
 
-      // Check if permission already granted on native
-      if (isNative()) {
-        const status = await checkNotificationPermission();
-        if (status === 'granted') setPermissionAlreadyGranted(true);
-      }
+        // Check permission status in background — won't block page load
+        safeCheckPermission().then((status) => {
+          if (status === 'granted') setPermissionAlreadyGranted(true);
+        });
 
-      setLoading(false);
-    }).catch(() => setLoading(false));
+      } catch (e) {
+        console.error('Init error:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    initialize();
   }, []);
 
   const handleEnableNotifications = async () => {
@@ -55,12 +79,12 @@ export default function NotificationPreferences() {
     try {
       const currentUser = await api.auth.me();
 
-      // If already granted on native, skip the request and just register
       if (isNative()) {
-        const currentStatus = await checkNotificationPermission();
+        // On native — check if already granted first
+        const currentStatus = await safeCheckPermission();
         if (currentStatus === 'granted') {
           await registerDevice(currentUser.id);
-          setPreferences({ ...preferences, notification_push: true });
+          setPreferences(p => ({ ...p, notification_push: true }));
           await api.auth.updateMe({ ...preferences, notification_push: true });
           setPermissionAlreadyGranted(true);
           setSaved(true);
@@ -68,22 +92,46 @@ export default function NotificationPreferences() {
           setSaving(false);
           return;
         }
-      }
 
-      // Otherwise request permission
-      const { requestNotificationPermission } = await import('@/components/services/notificationPermissionService');
-      const permitted = await requestNotificationPermission();
+        // Request permission with timeout
+        const permitted = await Promise.race([
+          new Promise((resolve) => {
+            window.plugins?.OneSignal?.Notifications?.requestPermission(true, (accepted) => {
+              resolve(accepted === true);
+            });
+          }),
+          new Promise((resolve) => setTimeout(() => resolve(null), 20000))
+        ]);
 
-      if (permitted) {
-        await registerDevice(currentUser.id);
-        setPreferences({ ...preferences, notification_push: true });
-        await api.auth.updateMe({ ...preferences, notification_push: true });
-        setPermissionAlreadyGranted(true);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
+        // If timed out, check actual status
+        const finalStatus = permitted === null
+          ? await safeCheckPermission()
+          : (permitted ? 'granted' : 'denied');
+
+        if (finalStatus === 'granted') {
+          await registerDevice(currentUser.id);
+          setPreferences(p => ({ ...p, notification_push: true }));
+          await api.auth.updateMe({ ...preferences, notification_push: true });
+          setPermissionAlreadyGranted(true);
+          setSaved(true);
+          setTimeout(() => setSaved(false), 3000);
+        } else {
+          setPermissionDenied(true);
+          setPreferences(p => ({ ...p, notification_push: false }));
+        }
       } else {
-        setPermissionDenied(true);
-        setPreferences({ ...preferences, notification_push: false });
+        // Web browser
+        if (!window.OneSignal) { setPermissionDenied(true); setSaving(false); return; }
+        const granted = await window.OneSignal.Notifications.requestPermission();
+        if (granted) {
+          await registerDevice(currentUser.id);
+          setPreferences(p => ({ ...p, notification_push: true }));
+          await api.auth.updateMe({ ...preferences, notification_push: true });
+          setSaved(true);
+          setTimeout(() => setSaved(false), 3000);
+        } else {
+          setPermissionDenied(true);
+        }
       }
     } catch (error) {
       console.error('Failed to enable notifications:', error);
@@ -172,7 +220,7 @@ export default function NotificationPreferences() {
                   />
                   {isPremium && preferences.notification_push && (
                     permissionAlreadyGranted ? (
-                      <div className="flex items-center gap-1 text-green-400 text-sm">
+                      <div className="flex items-center gap-1 text-green-400 text-sm font-medium">
                         <Check className="w-4 h-4" />
                         Enabled
                       </div>
