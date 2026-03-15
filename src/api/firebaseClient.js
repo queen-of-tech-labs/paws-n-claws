@@ -79,7 +79,7 @@ export const auth = {
     if (isNative) {
       const { SocialLogin } = await import('@capgo/capacitor-social-login');
       await SocialLogin.initialize({ google: { webClientId: '264364776080-ig58tvhl9m7m6lp4eioa1qmpk2dc99l0.apps.googleusercontent.com' } });
-      const result = await SocialLogin.login({ provider: 'google', options: { scopes: ['profile', 'email'] } });
+      const result = await SocialLogin.login({ provider: 'google', options: {} });
       const idToken = result?.result?.idToken || result?.result?.authentication?.idToken;
       if (!idToken) throw new Error('No ID token returned from Google');
       const credential = GoogleAuthProvider.credential(idToken);
