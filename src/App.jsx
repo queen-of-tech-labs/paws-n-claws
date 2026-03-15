@@ -4,6 +4,7 @@ import { queryClientInstance } from '@/lib/query-client';
 import { HashRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import OnboardingNotificationDialog from '@/components/shared/OnboardingNotificationDialog';
+import { useState, useEffect } from 'react';
 
 // Pages
 import Home from './pages/Home';
@@ -72,17 +73,26 @@ const AdminRoute = ({ children }) => {
   return children;
 };
 
-// This component handles the notification prompt for authenticated users
+// Listens for the custom event fired from AuthContext
 const NotificationPromptManager = () => {
-  const { user, showNotificationPrompt, setShowNotificationPrompt } = useAuth();
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [userId, setUserId] = useState(null);
 
-  if (!user) return null;
+  useEffect(() => {
+    const handler = (e) => {
+      console.log('show-notification-prompt event received', e.detail);
+      setUserId(e.detail?.userId);
+      setShowPrompt(true);
+    };
+    window.addEventListener('show-notification-prompt', handler);
+    return () => window.removeEventListener('show-notification-prompt', handler);
+  }, []);
 
   return (
     <OnboardingNotificationDialog
-      open={showNotificationPrompt}
-      onOpenChange={setShowNotificationPrompt}
-      userId={user.id}
+      open={showPrompt}
+      onOpenChange={setShowPrompt}
+      userId={userId}
     />
   );
 };
@@ -99,44 +109,39 @@ const AppRoutes = () => {
   }
 
   return (
-    <Routes>
-      {/* Public routes */}
-      <Route path="/" element={<Home />} />
-      <Route path="/login" element={
-        isAuthenticated
-          ? <Navigate to="/dashboard" replace />
-          : <LoginPage />
-      } />
-
-      {/* Protected routes wrapped in Layout */}
-      <Route path="/dashboard" element={<ProtectedRoute><Layout currentPageName="Dashboard"><Dashboard /></Layout></ProtectedRoute>} />
-      <Route path="/pets" element={<ProtectedRoute><Layout currentPageName="PetProfiles"><PetProfiles /></Layout></ProtectedRoute>} />
-      <Route path="/pets/detail" element={<ProtectedRoute><Layout currentPageName="PetDetail"><PetDetail /></Layout></ProtectedRoute>} />
-      <Route path="/care" element={<ProtectedRoute><Layout currentPageName="CareTracker"><CareTracker /></Layout></ProtectedRoute>} />
-      <Route path="/health" element={<ProtectedRoute><Layout currentPageName="HealthRecords"><HealthRecords /></Layout></ProtectedRoute>} />
-      <Route path="/appointments" element={<ProtectedRoute><Layout currentPageName="Appointments"><Appointments /></Layout></ProtectedRoute>} />
-      <Route path="/vet-finder" element={<ProtectedRoute><Layout currentPageName="VetFinder"><VetFinder /></Layout></ProtectedRoute>} />
-      <Route path="/vet-network" element={<ProtectedRoute><Layout currentPageName="VetNetwork"><VetNetwork /></Layout></ProtectedRoute>} />
-      <Route path="/rescues" element={<ProtectedRoute><Layout currentPageName="AnimalRescues"><AnimalRescues /></Layout></ProtectedRoute>} />
-      <Route path="/reminders" element={<ProtectedRoute><Layout currentPageName="PetReminders"><PetReminders /></Layout></ProtectedRoute>} />
-      <Route path="/community" element={<ProtectedRoute><Layout currentPageName="PetCommunity"><PetCommunity /></Layout></ProtectedRoute>} />
-      <Route path="/community/category" element={<ProtectedRoute><Layout currentPageName="ForumCategoryPage"><ForumCategoryPage /></Layout></ProtectedRoute>} />
-      <Route path="/community/post" element={<ProtectedRoute><Layout currentPageName="ForumPost"><ForumPost /></Layout></ProtectedRoute>} />
-      <Route path="/community/create-post" element={<ProtectedRoute><Layout currentPageName="ForumCreatePost"><ForumCreatePost /></Layout></ProtectedRoute>} />
-      <Route path="/guides" element={<ProtectedRoute><Layout currentPageName="PetCareGuides"><PetCareGuides /></Layout></ProtectedRoute>} />
-      <Route path="/guides/category" element={<ProtectedRoute><Layout currentPageName="PetCareGuideCategory"><PetCareGuideCategory /></Layout></ProtectedRoute>} />
-      <Route path="/guides/detail" element={<ProtectedRoute><Layout currentPageName="PetCareGuideDetail"><PetCareGuideDetail /></Layout></ProtectedRoute>} />
-      <Route path="/assistant" element={<ProtectedRoute><Layout currentPageName="PetAssistant"><PetAssistant /></Layout></ProtectedRoute>} />
-      <Route path="/account" element={<ProtectedRoute><Layout currentPageName="Account"><Account /></Layout></ProtectedRoute>} />
-      <Route path="/notifications" element={<ProtectedRoute><Layout currentPageName="NotificationPreferences"><NotificationPreferences /></Layout></ProtectedRoute>} />
-      <Route path="/feedback" element={<ProtectedRoute><Layout currentPageName="Feedback"><Feedback /></Layout></ProtectedRoute>} />
-      <Route path="/admin/users" element={<AdminRoute><Layout currentPageName="AdminUsers"><AdminUsers /></Layout></AdminRoute>} />
-      <Route path="/admin/user" element={<AdminRoute><Layout currentPageName="AdminUserDetail"><AdminUserDetail /></Layout></AdminRoute>} />
-      <Route path="/admin/rescue-suggestions" element={<AdminRoute><Layout currentPageName="AdminRescueSuggestions"><AdminRescueSuggestions /></Layout></AdminRoute>} />
-      <Route path="/admin/guides" element={<AdminRoute><Layout currentPageName="AdminGuideManagement"><AdminGuideManagement /></Layout></AdminRoute>} />
-
-      <Route path="*" element={<PageNotFound />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+        <Route path="/dashboard" element={<ProtectedRoute><Layout currentPageName="Dashboard"><Dashboard /></Layout></ProtectedRoute>} />
+        <Route path="/pets" element={<ProtectedRoute><Layout currentPageName="PetProfiles"><PetProfiles /></Layout></ProtectedRoute>} />
+        <Route path="/pets/detail" element={<ProtectedRoute><Layout currentPageName="PetDetail"><PetDetail /></Layout></ProtectedRoute>} />
+        <Route path="/care" element={<ProtectedRoute><Layout currentPageName="CareTracker"><CareTracker /></Layout></ProtectedRoute>} />
+        <Route path="/health" element={<ProtectedRoute><Layout currentPageName="HealthRecords"><HealthRecords /></Layout></ProtectedRoute>} />
+        <Route path="/appointments" element={<ProtectedRoute><Layout currentPageName="Appointments"><Appointments /></Layout></ProtectedRoute>} />
+        <Route path="/vet-finder" element={<ProtectedRoute><Layout currentPageName="VetFinder"><VetFinder /></Layout></ProtectedRoute>} />
+        <Route path="/vet-network" element={<ProtectedRoute><Layout currentPageName="VetNetwork"><VetNetwork /></Layout></ProtectedRoute>} />
+        <Route path="/rescues" element={<ProtectedRoute><Layout currentPageName="AnimalRescues"><AnimalRescues /></Layout></ProtectedRoute>} />
+        <Route path="/reminders" element={<ProtectedRoute><Layout currentPageName="PetReminders"><PetReminders /></Layout></ProtectedRoute>} />
+        <Route path="/community" element={<ProtectedRoute><Layout currentPageName="PetCommunity"><PetCommunity /></Layout></ProtectedRoute>} />
+        <Route path="/community/category" element={<ProtectedRoute><Layout currentPageName="ForumCategoryPage"><ForumCategoryPage /></Layout></ProtectedRoute>} />
+        <Route path="/community/post" element={<ProtectedRoute><Layout currentPageName="ForumPost"><ForumPost /></Layout></ProtectedRoute>} />
+        <Route path="/community/create-post" element={<ProtectedRoute><Layout currentPageName="ForumCreatePost"><ForumCreatePost /></Layout></ProtectedRoute>} />
+        <Route path="/guides" element={<ProtectedRoute><Layout currentPageName="PetCareGuides"><PetCareGuides /></Layout></ProtectedRoute>} />
+        <Route path="/guides/category" element={<ProtectedRoute><Layout currentPageName="PetCareGuideCategory"><PetCareGuideCategory /></Layout></ProtectedRoute>} />
+        <Route path="/guides/detail" element={<ProtectedRoute><Layout currentPageName="PetCareGuideDetail"><PetCareGuideDetail /></Layout></ProtectedRoute>} />
+        <Route path="/assistant" element={<ProtectedRoute><Layout currentPageName="PetAssistant"><PetAssistant /></Layout></ProtectedRoute>} />
+        <Route path="/account" element={<ProtectedRoute><Layout currentPageName="Account"><Account /></Layout></ProtectedRoute>} />
+        <Route path="/notifications" element={<ProtectedRoute><Layout currentPageName="NotificationPreferences"><NotificationPreferences /></Layout></ProtectedRoute>} />
+        <Route path="/feedback" element={<ProtectedRoute><Layout currentPageName="Feedback"><Feedback /></Layout></ProtectedRoute>} />
+        <Route path="/admin/users" element={<AdminRoute><Layout currentPageName="AdminUsers"><AdminUsers /></Layout></AdminRoute>} />
+        <Route path="/admin/user" element={<AdminRoute><Layout currentPageName="AdminUserDetail"><AdminUserDetail /></Layout></AdminRoute>} />
+        <Route path="/admin/rescue-suggestions" element={<AdminRoute><Layout currentPageName="AdminRescueSuggestions"><AdminRescueSuggestions /></Layout></AdminRoute>} />
+        <Route path="/admin/guides" element={<AdminRoute><Layout currentPageName="AdminGuideManagement"><AdminGuideManagement /></Layout></AdminRoute>} />
+        <Route path="*" element={<PageNotFound />} />
+      </Routes>
+      <NotificationPromptManager />
+    </>
   );
 };
 
@@ -146,8 +151,6 @@ function App() {
       <QueryClientProvider client={queryClientInstance}>
         <Router>
           <AppRoutes />
-          {/* Notification permission prompt — shown to all logged-in users who haven't granted permission */}
-          <NotificationPromptManager />
         </Router>
         <Toaster />
       </QueryClientProvider>
