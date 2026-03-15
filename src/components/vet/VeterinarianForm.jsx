@@ -140,49 +140,61 @@ export default function VeterinarianForm({ veterinarian, onSuccess, onCancel }) 
   };
 
   const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim() && !userLocation) {
+      setErrors({ search: 'Please enter a search term or enable location.' });
+      return;
+    }
 
     setSearching(true);
     setSearchResults([]);
+    setErrors({});
+
     try {
-      const locationParam = (useLocation && userLocation) ? `${userLocation.lat},${userLocation.lng}` : null;
-      console.log('Searching vets with:', { useLocation, userLocation, locationParam });
-      const { data } = await api.functions.invoke('searchVetClinics', {
-        searchQuery: searchQuery.trim(),
-        location: locationParam
-      });
+      const isNative = !!(window.Capacitor?.isNativePlatform?.());
+      const baseUrl = isNative ? 'https://paws-n-claws.vercel.app' : '';
+
+      // Build query params
+      const params = new URLSearchParams();
+      if (searchQuery.trim()) params.set('query', searchQuery.trim());
+      if (useLocation && userLocation) {
+        params.set('lat', userLocation.lat);
+        params.set('lng', userLocation.lng);
+      }
+
+      console.log('Searching vets:', params.toString());
+      const response = await fetch(`${baseUrl}/api/places-search?${params.toString()}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Search failed');
+      }
+
+      console.log('Search results:', data.results?.length || 0);
       setSearchResults(data.results || []);
+
+      if (!data.results?.length) {
+        setErrors({ search: 'No vet clinics found. Try a different search term or location.' });
+      }
     } catch (error) {
-      setErrors({ search: error.message });
+      console.error('Search error:', error);
+      setErrors({ search: error.message || 'Search failed. Please try again.' });
     } finally {
       setSearching(false);
     }
   };
 
-  const handleSelectClinic = async (place) => {
-    setSearching(true);
-    try {
-      const { data } = await api.functions.invoke('getVetClinicDetails', {
-        placeId: place.place_id,
-      });
-      
-      setFormData({
-        ...formData,
-        clinic_name: data.details.clinic_name,
-        address: data.details.address,
-        phone_number: data.details.phone_number,
-        website: data.details.website,
-        emergency_hours: data.details.emergency_hours,
-      });
-      
-      setShowSearch(false);
-      setSearchResults([]);
-      setSearchQuery("");
-    } catch (error) {
-      setErrors({ search: error.message });
-    } finally {
-      setSearching(false);
-    }
+  const handleSelectClinic = (place) => {
+    // Use data already returned from search — no second API call needed
+    setFormData({
+      ...formData,
+      clinic_name: place.name || '',
+      address: place.vicinity || '',
+      phone_number: place.phone || '',
+      website: place.website || '',
+    });
+    setShowSearch(false);
+    setSearchResults([]);
+    setSearchQuery("");
   };
 
   return (
