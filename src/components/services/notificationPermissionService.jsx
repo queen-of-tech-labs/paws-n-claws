@@ -1,19 +1,22 @@
 import { getSubscriptionId, requestPermission } from './oneSignalService';
 
+const isNative = () => !!(window.Capacitor?.isNativePlatform?.());
+
 /**
  * Check the current notification permission status
- * @returns {Promise<'granted' | 'denied' | 'default'>}
  */
 export async function checkNotificationPermission() {
   try {
-    if (!window.OneSignal) {
-      console.warn('OneSignal not initialized');
-      return 'default';
+    if (isNative()) {
+      return new Promise((resolve) => {
+        if (!window.plugins?.OneSignal) { resolve('default'); return; }
+        window.plugins.OneSignal.Notifications.getPermissionAsync((permission) => {
+          resolve(permission ? 'granted' : 'default');
+        });
+      });
     }
-
-    const permission = await window.OneSignal.Notifications.permission;
-    console.log('Current notification permission:', permission);
-    return permission; // 'granted', 'denied', or 'default'
+    if (!window.OneSignal) return 'default';
+    return window.OneSignal.Notifications.permission ? 'granted' : 'default';
   } catch (error) {
     console.error('Failed to check notification permission:', error);
     return 'default';
@@ -22,17 +25,19 @@ export async function checkNotificationPermission() {
 
 /**
  * Request notification permission
- * @returns {Promise<boolean>} true if granted, false if denied
  */
 export async function requestNotificationPermission() {
   try {
-    if (!window.OneSignal) {
-      console.warn('OneSignal not initialized');
-      return false;
+    if (isNative()) {
+      return new Promise((resolve) => {
+        if (!window.plugins?.OneSignal) { resolve(false); return; }
+        window.plugins.OneSignal.Notifications.requestPermission(true, (accepted) => {
+          resolve(accepted === true);
+        });
+      });
     }
-
+    if (!window.OneSignal) return false;
     const permission = await window.OneSignal.Notifications.requestPermission();
-    console.log('Permission request result:', permission);
     return permission === true;
   } catch (error) {
     console.error('Failed to request notification permission:', error);
@@ -42,27 +47,22 @@ export async function requestNotificationPermission() {
 
 /**
  * Register device with OneSignal and backend
- * @param {string} userId - Current user ID
- * @returns {Promise<boolean>} true if successful
  */
 export async function registerDevice(userId) {
   try {
     await new Promise(resolve => setTimeout(resolve, 500));
-
     const deviceToken = await getSubscriptionId();
-
     if (!deviceToken) {
       console.warn('Failed to get device token');
       return false;
     }
-
-    console.log('Device token obtained:', deviceToken);
-
-    if (window.OneSignal && userId) {
-      window.OneSignal.login(userId);
-      console.log('External user ID set:', userId);
+    if (userId) {
+      if (isNative()) {
+        window.plugins?.OneSignal?.login(userId);
+      } else if (window.OneSignal) {
+        window.OneSignal.login(userId);
+      }
     }
-
     return true;
   } catch (error) {
     console.error('Failed to register device:', error);
@@ -72,26 +72,16 @@ export async function registerDevice(userId) {
 
 /**
  * Handle the complete notification permission recovery flow
- * @param {string} userId - Current user ID
- * @returns {Promise<{status: 'granted' | 'denied' | 'default', registered: boolean}>}
  */
 export async function handleNotificationPermissionRecovery(userId) {
   try {
     const permission = await checkNotificationPermission();
-    console.log('Permission status:', permission);
-
     if (permission === 'granted') {
-      // Already granted - register device
       const registered = await registerDevice(userId);
       return { status: 'granted', registered };
     } else if (permission === 'denied') {
-      // Previously denied - don't request again
-      console.log('Notification permission previously denied');
       return { status: 'denied', registered: false };
     } else {
-      // Not determined - don't request automatically
-      // User should request manually through the UI
-      console.log('Notification permission not yet determined');
       return { status: 'default', registered: false };
     }
   } catch (error) {
@@ -102,9 +92,6 @@ export async function handleNotificationPermissionRecovery(userId) {
 
 /**
  * Monitor permission changes and auto-register if permission becomes granted
- * @param {string} userId - Current user ID
- * @param {Function} onPermissionGranted - Callback when permission is granted
- * @returns {Function} Cleanup function to stop monitoring
  */
 export function monitorPermissionChanges(userId, onPermissionGranted) {
   let lastPermission = null;
@@ -112,34 +99,19 @@ export function monitorPermissionChanges(userId, onPermissionGranted) {
 
   const checkPermission = async () => {
     if (!isMonitoring) return;
-
     try {
       const permission = await checkNotificationPermission();
-
-      // If permission changed from denied/default to granted
       if (permission === 'granted' && lastPermission !== 'granted') {
-        console.log('Permission granted - auto-registering device');
         const registered = await registerDevice(userId);
-        if (registered && onPermissionGranted) {
-          onPermissionGranted();
-        }
+        if (registered && onPermissionGranted) onPermissionGranted();
       }
-
       lastPermission = permission;
     } catch (error) {
       console.error('Error monitoring permission:', error);
     }
-
-    // Check again in 5 seconds
-    if (isMonitoring) {
-      setTimeout(checkPermission, 5000);
-    }
+    if (isMonitoring) setTimeout(checkPermission, 5000);
   };
 
   checkPermission();
-
-  // Return cleanup function
-  return () => {
-    isMonitoring = false;
-  };
+  return () => { isMonitoring = false; };
 }
