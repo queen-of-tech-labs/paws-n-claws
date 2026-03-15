@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fbAuth, auth as authHelpers } from '@/api/firebaseClient';
-import { isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
+import { isSignInWithEmailLink, signInWithEmailLink, onAuthStateChanged } from 'firebase/auth';
 import { PawPrint, Mail, Loader2, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,8 +56,17 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     try {
-      await authHelpers.redirectToLogin('/dashboard');
       const pending = window.localStorage.getItem('pendingAction');
+      await authHelpers.redirectToLogin('/dashboard');
+      // Wait for Firebase auth state to confirm login
+      await new Promise((resolve) => {
+        const unsubscribe = fbAuth.onAuthStateChanged((user) => {
+          if (user) {
+            unsubscribe();
+            resolve();
+          }
+        });
+      });
       if (pending === 'upgrade') {
         window.localStorage.removeItem('pendingAction');
         navigate('/account');
