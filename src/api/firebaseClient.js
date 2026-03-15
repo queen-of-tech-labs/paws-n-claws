@@ -2,6 +2,8 @@ import { initializeApp } from 'firebase/app';
 import {
   getAuth,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signInWithEmailLink,
   sendSignInLinkToEmail,
   GoogleAuthProvider,
@@ -72,14 +74,31 @@ export const auth = {
     };
   },
 
-  /** Sign in with Google popup */
+  /** Sign in with Google — popup on web, redirect on native */
   async redirectToLogin(redirectTo) {
+    const isNative = !!(window.Capacitor?.isNativePlatform?.());
+    if (isNative) {
+      // On native, use redirect — result handled by getRedirectResult on app load
+      await signInWithRedirect(fbAuth, googleProvider);
+      // This line won't be reached on native (page redirects away)
+    } else {
+      try {
+        await signInWithPopup(fbAuth, googleProvider);
+      } catch (error) {
+        console.error('Google sign-in error:', error);
+        throw error;
+      }
+    }
+  },
+
+  /** Check for redirect result (call on app startup for native Google auth) */
+  async checkRedirectResult() {
     try {
-      await signInWithPopup(fbAuth, googleProvider);
-      // navigation handled by caller
+      const result = await getRedirectResult(fbAuth);
+      return result;
     } catch (error) {
-      console.error('Google sign-in error:', error);
-      throw error;
+      console.error('Redirect result error:', error);
+      return null;
     }
   },
 
