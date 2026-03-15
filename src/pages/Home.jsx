@@ -10,6 +10,7 @@ import {
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { initializeOneSignal } from "@/components/services/oneSignalService";
+import { useAuth } from '@/lib/AuthContext';
 
 const features = [
   { icon: PawPrint, title: "Pet Profiles", description: "Create detailed profiles for all your pets with photos, medical info, and more" },
