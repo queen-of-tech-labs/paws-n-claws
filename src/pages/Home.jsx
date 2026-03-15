@@ -39,13 +39,24 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!isLoadingAuth && user) {
-      if (user.account_status === 'suspended' || user.account_status === 'banned') {
-        setAccountDisabled(true);
-        setDisabledReason(user.account_status);
+    if (!isLoadingAuth) {
+      if (user) {
+        if (user.account_status === 'suspended' || user.account_status === 'banned') {
+          setAccountDisabled(true);
+          setDisabledReason(user.account_status);
+          return;
+        }
+        // User is logged in — check for pending action then go to dashboard
+        const pending = window.localStorage.getItem('pendingAction');
+        if (pending === 'upgrade') {
+          window.localStorage.removeItem('pendingAction');
+          navigate('/account');
+        } else {
+          navigate('/dashboard');
+        }
       }
     }
-  }, [user, isLoadingAuth]);
+  }, [user, isLoadingAuth, navigate]);
 
   const startCheckout = async () => {
     setCheckoutLoading(true);
