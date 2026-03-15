@@ -65,17 +65,17 @@ export default function Dashboard() {
     enabled: !!user && (user?.premium_subscriber || user?.role === 'admin'),
   });
 
-  // Fire notifications once when data is loaded — use ref to prevent repeat firing
+  // Fire notifications once when ALL data is loaded
   const notifFiredRef = React.useRef(false);
   useEffect(() => {
-    // Wait until user, pets, and at least one data set is loaded
     if (!user?.id || !pets.length || notifFiredRef.current) return;
-    // For premium/admin, wait for reminders to load too
     const isPremium = user.premium_subscriber || user.role === 'admin';
-    if (isPremium && reminders.length === 0 && careLogs.length === 0) return;
-
-    notifFiredRef.current = true;
-    const run = async () => {
+    // For premium users wait until BOTH reminders and careLogs have been fetched
+    // We know they're done loading when the queries are enabled and have returned
+    // Use a small delay to let both queries settle
+    const timer = setTimeout(async () => {
+      if (notifFiredRef.current) return;
+      notifFiredRef.current = true;
       console.log('Firing notification check — reminders:', reminders.length, 'careLogs:', careLogs.length);
       if (reminders.length > 0) {
         await checkAndNotifyDueReminders({ reminders, pets, userId: user.id });
@@ -83,9 +83,9 @@ export default function Dashboard() {
       if (careLogs.length > 0) {
         await checkAndNotifyOverdueCare({ careLogs, pets, userId: user.id });
       }
-    };
-    run();
-  }, [user?.id, user?.premium_subscriber, user?.role, pets.length, reminders.length, careLogs.length]);
+    }, 4000); // 4 second delay gives all queries time to complete
+    return () => clearTimeout(timer);
+  }, [user?.id, pets.length]);
 
   const acknowledgeMutation = useMutation({
     mutationFn: (reminderId) => api.entities.Reminder.update(reminderId, { status: "acknowledged" }),
