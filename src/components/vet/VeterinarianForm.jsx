@@ -84,81 +84,58 @@ export default function VeterinarianForm({ veterinarian, onSuccess, onCancel }) 
 
   const handleLocationToggle = async (checked) => {
     setLocationError(null);
-
-    if (!checked) {
-      setUseLocation(false);
-      return;
-    }
-
-    if (checked && userLocation) {
-      setUseLocation(true);
-      return;
-    }
-
-    // Try Capacitor plugin first, fall back to browser geolocation
-    const tryGetLocation = () => {
-      return new Promise((resolve, reject) => {
-        if (!navigator.geolocation) {
-          reject(new Error('Geolocation not supported'));
-          return;
-        }
-        navigator.geolocation.getCurrentPosition(
-          (position) => resolve({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          }),
-          (err) => reject(err),
-          { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
-        );
-      });
-    };
+    if (!checked) { setUseLocation(false); return; }
+    if (userLocation) { setUseLocation(true); return; }
 
     const isNative = !!(window.Capacitor?.isNativePlatform?.());
 
     if (isNative) {
       try {
-        // Try Capacitor plugin first
-        const permission = await Geolocation.requestPermissions();
-        console.log('Capacitor permission result:', permission);
-
-        if (permission.location === 'granted' || permission.coarseLocation === 'granted') {
-          try {
-            const position = await Geolocation.getCurrentPosition({
-              enableHighAccuracy: false,
-              timeout: 15000,
-            });
-            setUserLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
-            setUseLocation(true);
-            console.log('Capacitor location:', position.coords);
-            return;
-          } catch (posErr) {
-            console.warn('Capacitor position failed, trying browser:', posErr);
-          }
+        // Request permission via Capacitor — shows Android system dialog
+        const { Geolocation } = await import('@capacitor/geolocation');
+        
+        // Check current status first
+        const status = await Geolocation.checkPermissions();
+        console.log('Current permission status:', status);
+        
+        let granted = status.location === 'granted' || status.coarseLocation === 'granted';
+        
+        if (!granted) {
+          // Request it — this shows the Android system popup
+          const result = await Geolocation.requestPermissions({ permissions: ['location', 'coarseLocation'] });
+          console.log('Permission request result:', result);
+          granted = result.location === 'granted' || result.coarseLocation === 'granted';
         }
 
-        // Fallback to browser geolocation even on native
-        console.log('Falling back to browser geolocation...');
-        const location = await tryGetLocation();
-        setUserLocation(location);
+        if (!granted) {
+          setLocationError('Location permission denied. Go to Settings → Apps → Paws & Claws → Permissions → Location → Allow while using app.');
+          setUseLocation(false);
+          return;
+        }
+
+        // Get position
+        const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 15000 });
+        setUserLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
         setUseLocation(true);
-        console.log('Browser location obtained:', location);
+        console.log('Location obtained:', position.coords);
 
       } catch (err) {
-        console.error('All location methods failed:', err);
-        // Last resort: ask user to enter location manually
-        setLocationError('Location access denied. Please go to Settings → Apps → Paws & Claws → Permissions → Location → Allow, then try again.');
+        console.error('Location error:', err);
+        setLocationError('Could not get location. Please allow location access in Settings → Apps → Paws & Claws → Permissions → Location.');
         setUseLocation(false);
       }
     } else {
-      // Pure web browser
-      try {
-        const location = await tryGetLocation();
-        setUserLocation(location);
-        setUseLocation(true);
-      } catch (err) {
-        setLocationError('Unable to access your location. Please enable location permissions in your browser.');
+      // Web browser
+      if (!navigator.geolocation) {
+        setLocationError('Location not available in this browser.');
         setUseLocation(false);
+        return;
       }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => { setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setUseLocation(true); },
+        () => { setLocationError('Unable to get location. Please enable location permissions.'); setUseLocation(false); },
+        { enableHighAccuracy: false, timeout: 15000 }
+      );
     }
   };
 
