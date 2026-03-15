@@ -30,7 +30,8 @@ export default async function handler(req, res) {
       // Nearby search with optional text query
       const url = 'https://places.googleapis.com/v1/places:searchNearby';
       const body = {
-        includedTypes: ['veterinary_care'],
+        includedTypes: ['veterinary_care', 'animal_shelter', 'pet_store'],
+        excludedTypes: [],
         maxResultCount: 20,
         locationRestriction: {
           circle: {
@@ -38,7 +39,7 @@ export default async function handler(req, res) {
               latitude: parseFloat(lat),
               longitude: parseFloat(lng),
             },
-            radius: 16000.0, // 10 miles
+            radius: 40000.0, // 25 miles
           },
         },
       };
@@ -77,7 +78,7 @@ export default async function handler(req, res) {
       // Text-only search using Places Text Search
       const url = `https://places.googleapis.com/v1/places:searchText`;
       const body = {
-        textQuery: `${query} veterinarian vet clinic`,
+        textQuery: query,
         maxResultCount: 20,
       };
 
