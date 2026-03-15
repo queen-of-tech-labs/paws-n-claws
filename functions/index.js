@@ -355,6 +355,8 @@ Answer the user's questions about pet health, nutrition, behavior, grooming, and
 );
 
 // ─────────────────────────────────────────────
+
+// ─────────────────────────────────────────────
 // createCheckoutSession (Stripe payments)
 // ─────────────────────────────────────────────
 exports.createCheckoutSession = onCall(
@@ -366,7 +368,7 @@ exports.createCheckoutSession = onCall(
       throw new HttpsError('unauthenticated', 'You must be logged in.');
     }
 
-    const { priceId, successUrl, cancelUrl } = request.data;
+    const { priceId, successUrl, cancelUrl, mode } = request.data;
 
     if (!priceId) {
       throw new HttpsError('invalid-argument', 'priceId is required.');
@@ -396,13 +398,16 @@ exports.createCheckoutSession = onCall(
         });
       }
 
+      // Use mode passed from frontend ('payment' for one-time, 'subscription' for recurring)
+      const checkoutMode = mode || 'subscription';
+
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         payment_method_types: ['card'],
         line_items: [{ price: priceId, quantity: 1 }],
-        mode: 'subscription',
-        success_url: successUrl || 'https://paws-n-claws.vercel.app/dashboard',
-        cancel_url: cancelUrl || 'https://paws-n-claws.vercel.app/',
+        mode: checkoutMode,
+        success_url: successUrl || 'https://paws-n-claws.vercel.app/#/account',
+        cancel_url: cancelUrl || 'https://paws-n-claws.vercel.app/#/account',
         metadata: { firebaseUID: uid },
       });
 
@@ -411,6 +416,9 @@ exports.createCheckoutSession = onCall(
       console.error('Stripe error:', error);
       throw new HttpsError('internal', error.message);
     }
+  }
+);
+
   }
 );
 
