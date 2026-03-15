@@ -4,5 +4,12 @@
   "webDir": "dist",
   "server": {
     "androidScheme": "https"
+  },
+  "plugins": {
+    "SocialLogin": {
+      "google": {
+        "webClientId": "264364776080-ig58tvhl9m7m6lp4eioa1qmpk2dc99l0.apps.googleusercontent.com"
+      }
+    }
   }
 }

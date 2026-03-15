@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { fbAuth, db, auth as authHelpers } from '@/api/firebaseClient';
-import { onAuthStateChanged, getRedirectResult } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 const AuthContext = createContext();
@@ -12,9 +12,6 @@ export const AuthProvider = ({ children }) => {
   const [authError, setAuthError] = useState(null);
 
   useEffect(() => {
-    // Check for Google redirect result on app startup (handles native Android auth)
-    getRedirectResult(fbAuth).catch(() => {});
-
     const unsubscribe = onAuthStateChanged(fbAuth, async (firebaseUser) => {
       if (firebaseUser) {
         await loadUser(firebaseUser);

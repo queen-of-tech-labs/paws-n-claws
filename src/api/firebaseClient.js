@@ -2,8 +2,7 @@ import { initializeApp } from 'firebase/app';
 import {
   getAuth,
   signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithCredential,
   signInWithEmailLink,
   sendSignInLinkToEmail,
   GoogleAuthProvider,
@@ -74,13 +73,17 @@ export const auth = {
     };
   },
 
-  /** Sign in with Google — popup on web, redirect on native */
+  /** Sign in with Google — native plugin on Android, popup on web */
   async redirectToLogin(redirectTo) {
     const isNative = !!(window.Capacitor?.isNativePlatform?.());
     if (isNative) {
-      // On native, use redirect — result handled by getRedirectResult on app load
-      await signInWithRedirect(fbAuth, googleProvider);
-      // This line won't be reached on native (page redirects away)
+      const { SocialLogin } = await import('@capgo/capacitor-social-login');
+      await SocialLogin.initialize({ google: { webClientId: '264364776080-ig58tvhl9m7m6lp4eioa1qmpk2dc99l0.apps.googleusercontent.com' } });
+      const result = await SocialLogin.login({ provider: 'google', options: { scopes: ['profile', 'email'] } });
+      const idToken = result?.result?.idToken || result?.result?.authentication?.idToken;
+      if (!idToken) throw new Error('No ID token returned from Google');
+      const credential = GoogleAuthProvider.credential(idToken);
+      await signInWithCredential(fbAuth, credential);
     } else {
       try {
         await signInWithPopup(fbAuth, googleProvider);
@@ -88,17 +91,6 @@ export const auth = {
         console.error('Google sign-in error:', error);
         throw error;
       }
-    }
-  },
-
-  /** Check for redirect result (call on app startup for native Google auth) */
-  async checkRedirectResult() {
-    try {
-      const result = await getRedirectResult(fbAuth);
-      return result;
-    } catch (error) {
-      console.error('Redirect result error:', error);
-      return null;
     }
   },
 
