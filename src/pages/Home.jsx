@@ -11,6 +11,8 @@ import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { initializeOneSignal } from "@/components/services/oneSignalService";
 import { useAuth } from '@/lib/AuthContext';
+import { fbAuth } from '@/api/firebaseClient';
+import { isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 
 const features = [
   { icon: PawPrint, title: "Pet Profiles", description: "Create detailed profiles for all your pets with photos, medical info, and more" },
@@ -36,6 +38,22 @@ export default function Home() {
 
   useEffect(() => {
     (async () => { try { await initializeOneSignal(); } catch (e) {} })();
+
+    // Handle magic link callback — email links land on home page first
+    if (isSignInWithEmailLink(fbAuth, window.location.href)) {
+      let emailForSignIn = window.localStorage.getItem('emailForSignIn');
+      if (!emailForSignIn) {
+        emailForSignIn = window.prompt('Please provide your email for confirmation');
+      }
+      signInWithEmailLink(fbAuth, emailForSignIn, window.location.href)
+        .then(() => {
+          window.localStorage.removeItem('emailForSignIn');
+          // Auth state change will trigger redirect in second useEffect
+        })
+        .catch((err) => {
+          console.error('Magic link error:', err);
+        });
+    }
   }, []);
 
   useEffect(() => {
@@ -52,8 +70,7 @@ export default function Home() {
           window.localStorage.removeItem('pendingAction');
           navigate('/account');
         } else {
-          console.log('HOME REDIRECT FIRING to dashboard');
-navigate('/dashboard');
+          navigate('/dashboard');
         }
       }
     }
