@@ -30,8 +30,7 @@ export default async function handler(req, res) {
       // Nearby search with optional text query
       const url = 'https://places.googleapis.com/v1/places:searchNearby';
       const body = {
-        includedTypes: ['veterinary_care', 'animal_shelter', 'pet_store'],
-        excludedTypes: [],
+        includedTypes: ['veterinary_care', 'pet_store'],
         maxResultCount: 20,
         locationRestriction: {
           circle: {
