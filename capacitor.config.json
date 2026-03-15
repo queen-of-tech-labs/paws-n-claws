@@ -1,5 +1,5 @@
 {
-  "appId": "com.pawsandclaws.app",
+  "appId": "paws.claws.pet.tracker",
   "appName": "Paws and Claws",
   "webDir": "dist",
   "server": {
