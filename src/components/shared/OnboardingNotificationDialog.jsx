@@ -4,8 +4,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Bell, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
-import api from '@/api/firebaseClient';
-import { initializeOneSignal, getDeviceToken, registerDeviceWithBackend, isOneSignalReady } from '@/components/services/oneSignalService';
+
+const isNative = () => !!(window.Capacitor?.isNativePlatform?.());
 
 export default function OnboardingNotificationDialog({ open, onOpenChange, userId }) {
   const [loading, setLoading] = useState(false);
@@ -15,83 +15,84 @@ export default function OnboardingNotificationDialog({ open, onOpenChange, userI
   const handleEnableNotifications = async () => {
     setLoading(true);
     setError(null);
-    console.log('🔔 User clicked Enable Notifications button');
+    console.log('🔔 User clicked Enable Notifications');
 
     try {
-      // Check if OneSignal is ready
-      if (!isOneSignalReady()) {
-        console.error('❌ OneSignal not ready');
-        setError('OneSignal is not initialized. Please refresh the page and try again.');
-        setLoading(false);
-        return;
-      }
-      
-      console.log('✅ OneSignal ready for permission request');
+      let granted = false;
 
-      // Step 1: Request notification permission
-      if (!window.OneSignal) {
-        console.error('❌ OneSignal SDK not available');
-        setError('Notification service not ready. Please refresh and try again.');
-        setLoading(false);
-        return;
-      }
+      if (isNative()) {
+        // ── NATIVE ANDROID ──
+        // Use the Cordova OneSignal plugin to request permission
+        granted = await new Promise((resolve) => {
+          const os = window.plugins?.OneSignal;
+          if (!os) {
+            console.warn('OneSignal native plugin not available');
+            resolve(false);
+            return;
+          }
 
-      console.log('🔔 Requesting notification permission from browser...');
-      const permission = await window.OneSignal.Notifications.requestPermission();
+          // Timeout fallback after 20 seconds
+          const timer = setTimeout(async () => {
+            console.warn('Permission request timed out — checking current status');
+            try {
+              os.Notifications.getPermissionAsync((p) => resolve(!!p));
+            } catch {
+              resolve(false);
+            }
+          }, 20000);
 
-      if (!permission) {
-        console.warn('❌ User denied notification permission');
-        setError('Notification permission was denied. You can enable it later in your browser settings.');
-        setLoading(false);
-        return;
-      }
+          try {
+            os.Notifications.requestPermission(true, (accepted) => {
+              clearTimeout(timer);
+              console.log('Native permission result:', accepted);
+              resolve(!!accepted);
+            });
+          } catch (e) {
+            clearTimeout(timer);
+            console.error('Native requestPermission error:', e);
+            resolve(false);
+          }
+        });
 
-      console.log('✓ Permission granted by user');
-
-      // Step 2: Get device token
-      console.log('📱 Getting device token from OneSignal...');
-      const deviceToken = await getDeviceToken();
-
-      if (!deviceToken) {
-        console.warn('⚠️ Failed to get device token');
-        setError('Device registration encountered an issue, but permission was granted.');
-        setSuccess(true);
-        setLoading(false);
-        return;
-      }
-
-      console.log('✓ Device token obtained:', deviceToken);
-
-      // Step 3: Register device with backend
-      console.log('💾 Registering device with backend...');
-      await registerDeviceWithBackend(deviceToken, 'Web Browser');
-      console.log('✓ Device registered with backend');
-
-      // Step 4: Link user to OneSignal
-      if (userId) {
-        console.log('👤 Linking user to OneSignal:', userId);
-        await window.OneSignal.login(userId);
-        console.log('✓ User linked to OneSignal');
-      }
-
-      // Step 5: Set premium tag if applicable
-      try {
-        const user = await api.auth.me();
-        if (user?.premium_subscriber && window.OneSignal) {
-          console.log('🏆 Setting premium tag on device');
-          await window.OneSignal.User.addTag('premium', 'true');
-          console.log('✓ Premium tag set');
+        if (granted) {
+          // Link user to OneSignal so we can target them
+          try {
+            window.plugins?.OneSignal?.login(userId);
+            console.log('✓ Native user linked to OneSignal:', userId);
+          } catch (e) {
+            console.warn('OneSignal login warning:', e);
+          }
         }
-      } catch (tagError) {
-        console.warn('⚠️ Failed to set premium tag:', tagError);
-        // Don't fail the flow for this
+
+      } else {
+        // ── WEB BROWSER ──
+        if (!window.OneSignal) {
+          setError('Notification service not ready. Please refresh and try again.');
+          setLoading(false);
+          return;
+        }
+
+        const permission = await window.OneSignal.Notifications.requestPermission();
+        granted = permission === true;
+
+        if (granted && userId) {
+          await window.OneSignal.login(userId).catch(() => {});
+          console.log('✓ Web user linked to OneSignal:', userId);
+        }
       }
 
-      console.log('✅ Notification setup complete!');
+      if (!granted) {
+        setError('Notification permission was denied. You can enable it later in your phone Settings → Apps → Paws & Claws → Notifications.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Notifications enabled successfully!');
       setSuccess(true);
       setTimeout(() => {
         onOpenChange(false);
       }, 1500);
+
     } catch (err) {
       console.error('❌ Notification setup failed:', err);
       setError(err.message || 'An error occurred while setting up notifications.');
@@ -99,12 +100,6 @@ export default function OnboardingNotificationDialog({ open, onOpenChange, userI
       setLoading(false);
     }
   };
-
-  React.useEffect(() => {
-    if (open) {
-      console.log('📋 Onboarding notification modal shown to user:', userId);
-    }
-  }, [open, userId]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

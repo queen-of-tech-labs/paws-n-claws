@@ -3,6 +3,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClientInstance } from '@/lib/query-client';
 import { HashRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
+import OnboardingNotificationDialog from '@/components/shared/OnboardingNotificationDialog';
 
 // Pages
 import Home from './pages/Home';
@@ -71,6 +72,21 @@ const AdminRoute = ({ children }) => {
   return children;
 };
 
+// This component handles the notification prompt for authenticated users
+const NotificationPromptManager = () => {
+  const { user, showNotificationPrompt, setShowNotificationPrompt } = useAuth();
+
+  if (!user) return null;
+
+  return (
+    <OnboardingNotificationDialog
+      open={showNotificationPrompt}
+      onOpenChange={setShowNotificationPrompt}
+      userId={user.id}
+    />
+  );
+};
+
 const AppRoutes = () => {
   const { isLoadingAuth, isAuthenticated } = useAuth();
 
@@ -84,7 +100,7 @@ const AppRoutes = () => {
 
   return (
     <Routes>
-      {/* Public routes — redirect to dashboard if already logged in */}
+      {/* Public routes */}
       <Route path="/" element={<Home />} />
       <Route path="/login" element={
         isAuthenticated
@@ -130,6 +146,8 @@ function App() {
       <QueryClientProvider client={queryClientInstance}>
         <Router>
           <AppRoutes />
+          {/* Notification permission prompt — shown to all logged-in users who haven't granted permission */}
+          <NotificationPromptManager />
         </Router>
         <Toaster />
       </QueryClientProvider>

@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { fbAuth, db, auth as authHelpers } from '@/api/firebaseClient';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { registerDeviceOnLogin } from '@/components/services/loginNotificationService';
+import { initializeOneSignal } from '@/components/services/oneSignalService';
 
 const AuthContext = createContext();
 
@@ -11,6 +11,7 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [authError, setAuthError] = useState(null);
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(fbAuth, async (firebaseUser) => {
@@ -59,20 +60,60 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
 
-      // Register device with OneSignal on every login — non-blocking
-      // Only for premium users or admins
-      const isPremium = fullUser.role === 'admin' || fullUser.premium_subscriber;
-      if (isPremium) {
-        registerDeviceOnLogin(fullUser).catch((e) => {
-          console.warn('Device registration failed silently:', e);
-        });
-      }
+      // Initialize OneSignal for ALL users (not just premium)
+      // Then check if we need to show the permission prompt
+      initializeAndCheckPermission(fullUser);
 
     } catch (error) {
       console.error('Error loading user profile:', error);
       setUser({ id: firebaseUser.uid, email: firebaseUser.email });
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
+    }
+  };
+
+  const initializeAndCheckPermission = async (fullUser) => {
+    try {
+      const isNative = !!(window.Capacitor?.isNativePlatform?.());
+
+      // Initialize OneSignal for all users
+      await initializeOneSignal(fullUser.id);
+      console.log('✓ OneSignal initialized for user:', fullUser.id);
+
+      // Check if permission is already granted
+      let permissionGranted = false;
+      if (isNative) {
+        // On native Android, check via OneSignal plugin
+        permissionGranted = await new Promise((resolve) => {
+          try {
+            window.plugins?.OneSignal?.Notifications?.getPermissionAsync?.((p) => resolve(!!p)) 
+              ?? resolve(false);
+          } catch {
+            resolve(false);
+          }
+        });
+      } else {
+        permissionGranted = Notification?.permission === 'granted';
+      }
+
+      console.log('Notification permission status:', permissionGranted ? 'granted' : 'not granted');
+
+      if (!permissionGranted) {
+        // Show the permission prompt dialog after a short delay
+        // so the app has time to fully load first
+        setTimeout(() => {
+          setShowNotificationPrompt(true);
+        }, 2000);
+      } else {
+        // Already granted — just make sure device is registered with OneSignal
+        if (isNative) {
+          window.plugins?.OneSignal?.login(fullUser.id);
+        } else if (window.OneSignal) {
+          window.OneSignal.login(fullUser.id).catch(() => {});
+        }
+      }
+    } catch (e) {
+      console.warn('OneSignal init/permission check failed:', e);
     }
   };
 
@@ -94,6 +135,8 @@ export const AuthProvider = ({ children }) => {
       appPublicSettings: null,
       logout,
       navigateToLogin,
+      showNotificationPrompt,
+      setShowNotificationPrompt,
     }}>
       {children}
     </AuthContext.Provider>
