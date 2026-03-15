@@ -228,7 +228,8 @@ export async function setUserTags({ userId, email, isPremium, role }) {
 // ─────────────────────────────────────────────
 
 async function callNotificationAPI(payload) {
-  const response = await fetch('/api/send-notification', {
+  const apiUrl = window.Capacitor?.isNativePlatform?.() ? 'https://paws-n-claws.vercel.app/api/send-notification' : '/api/send-notification';
+  const response = await fetch(apiUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
