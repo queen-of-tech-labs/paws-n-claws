@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { fbAuth, db, auth as authHelpers } from '@/api/firebaseClient';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { registerDeviceOnLogin } from '@/components/services/loginNotificationService';
 
 const AuthContext = createContext();
 
@@ -28,8 +29,8 @@ export const AuthProvider = ({ children }) => {
     try {
       const profileRef = doc(db, 'profiles', firebaseUser.uid);
       const profileSnap = await getDoc(profileRef);
-
       let profile = {};
+
       if (profileSnap.exists()) {
         profile = profileSnap.data();
       } else {
@@ -57,6 +58,16 @@ export const AuthProvider = ({ children }) => {
       setUser(fullUser);
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
+
+      // Register device with OneSignal on every login — non-blocking
+      // Only for premium users or admins
+      const isPremium = fullUser.role === 'admin' || fullUser.premium_subscriber;
+      if (isPremium) {
+        registerDeviceOnLogin(fullUser).catch((e) => {
+          console.warn('Device registration failed silently:', e);
+        });
+      }
+
     } catch (error) {
       console.error('Error loading user profile:', error);
       setUser({ id: firebaseUser.uid, email: firebaseUser.email });
