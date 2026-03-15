@@ -45,7 +45,9 @@ export default function Home() {
         setDisabledReason(user.account_status);
         return;
       }
-      if (user.role !== 'admin') navigate(createPageUrl("Dashboard"));
+      // Don't redirect if user is in the middle of an upgrade flow
+      const pending = window.localStorage.getItem('pendingAction');
+      if (!pending && user.role !== 'admin') navigate(createPageUrl("Dashboard"));
     }
   }, [user, isLoadingAuth, navigate]);
 
