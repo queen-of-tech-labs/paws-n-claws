@@ -353,7 +353,7 @@ export default function ReminderCard({ reminder, petName, onAcknowledge, onCompl
             </div>
             </div>
 
-            {reminder.status === "pending" && !hasDetails && !isEditMode && (
+            {reminder.status === "pending" && !isEditMode && (
             <div className="flex items-center gap-2 px-4 py-3 border-t border-slate-700/50">
             <Button
              size="sm"

@@ -56,6 +56,7 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
     };
   });
   const [saving, setSaving] = useState(false);
+  const isMedicationType = form.type === 'medication';
   const [createReminder, setCreateReminder] = useState(false);
   const [reminderDueDate, setReminderDueDate] = useState(new Date().toISOString().split("T")[0]);
   const [reminderTime, setReminderTime] = useState("09:00");
@@ -78,7 +79,13 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
     }
   }, [entry?.id, open]);
 
-  const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+  const handleChange = (field, value) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+    // Auto-enable reminder creation for medication entries
+    if (field === 'type' && value === 'medication') {
+      setCreateReminder(true);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -117,7 +124,7 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
         savedId = created.id;
       }
 
-      if (createReminder && reminderDueDate && savedId) {
+      if ((createReminder || data.type === 'medication') && savedId) {
         // Get user's timezone offset in minutes (e.g. EST = -300)
         const tzOffset = new Date().getTimezoneOffset();
 
@@ -232,15 +239,15 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
           <div className="flex items-center gap-2">
             <Checkbox
               id="create-reminder"
-              checked={createReminder}
+              checked={createReminder || form.type === 'medication'}
               onCheckedChange={setCreateReminder}
-              disabled={!user?.premium_subscriber && user?.role !== 'admin'}
+              disabled={!user?.premium_subscriber && user?.role !== 'admin' || form.type === 'medication'}
             />
             <Label
               htmlFor="create-reminder"
               className={`font-normal ${!user?.premium_subscriber && user?.role !== 'admin' ? 'text-gray-400 cursor-not-allowed' : 'cursor-pointer'}`}
             >
-              Create a reminder for this entry
+              {form.type === 'medication' ? 'Reminder auto-created from medication times' : 'Create a reminder for this entry'}
             </Label>
             {user?.premium_subscriber !== true && user?.role !== 'admin' && (
               <Badge className="ml-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs flex items-center gap-1">
