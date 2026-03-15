@@ -5,26 +5,7 @@ import { isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { PawPrint, Mail, Loader2, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import api from '@/api/firebaseClient';
-
-async function runCheckout() {
-  const response = await api.functions.invoke('createCheckoutSession', {
-    priceId: 'price_1T2GVUJKBH02BiIFrQGvTDlQ',
-    mode: 'subscription',
-    successUrl: 'https://paws-n-claws.vercel.app/#/dashboard',
-    cancelUrl: 'https://paws-n-claws.vercel.app/#/'
-  });
-  if (response.data?.url) {
-    const url = response.data.url;
-    if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-      window.open(url, '_system');
-    } else {
-      window.location.href = url;
-    }
-    return true;
-  }
-  return false;
-}
+import { useAuth } from '@/lib/AuthContext';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -32,44 +13,47 @@ export default function LoginPage() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { isAuthenticated, isLoadingAuth } = useAuth();
 
-  // Read and clear pendingAction ONCE when component mounts
-  const pendingAction = window.localStorage.getItem('pendingAction');
-
+  // Once auth is resolved, redirect if already logged in
   useEffect(() => {
-    // Check if already logged in
-    fbAuth.authStateReady().then(async () => {
-      if (!fbAuth.currentUser) return;
-      // User is already logged in — handle pending action or go to dashboard
-      if (pendingAction === 'upgrade') {
-        window.localStorage.removeItem('pendingAction');
-        setLoading(true);
-        try {
-          const ok = await runCheckout();
-          if (!ok) navigate('/dashboard');
-        } catch (err) {
-          console.error('Checkout error:', err);
-          navigate('/dashboard');
-        }
+    if (!isLoadingAuth && isAuthenticated) {
+      const pending = window.localStorage.getItem('pendingAction');
+      if (pending === 'upgrade') {
+        // Don't clear it here — let the checkout page handle it
+        navigate('/checkout');
       } else {
         navigate('/dashboard');
       }
-    });
-  }, []); // empty deps — only run once on mount
+    }
+  }, [isAuthenticated, isLoadingAuth, navigate]);
+
+  // Handle magic link callback
+  useEffect(() => {
+    if (isSignInWithEmailLink(fbAuth, window.location.href)) {
+      let emailForSignIn = window.localStorage.getItem('emailForSignIn');
+      if (!emailForSignIn) {
+        emailForSignIn = window.prompt('Please provide your email for confirmation');
+      }
+      setLoading(true);
+      signInWithEmailLink(fbAuth, emailForSignIn, window.location.href)
+        .then(() => {
+          window.localStorage.removeItem('emailForSignIn');
+          // Auth state change will trigger the useEffect above
+        })
+        .catch((err) => {
+          setError(err.message);
+          setLoading(false);
+        });
+    }
+  }, []);
 
   const handleGoogle = async () => {
     setLoading(true);
     setError('');
     try {
       await authHelpers.redirectToLogin('/dashboard');
-      // After successful Google login, handle pending action
-      if (pendingAction === 'upgrade') {
-        window.localStorage.removeItem('pendingAction');
-        const ok = await runCheckout();
-        if (!ok) navigate('/dashboard');
-      } else {
-        navigate('/dashboard');
-      }
+      // Auth state change in AuthContext will trigger redirect via useEffect above
     } catch (err) {
       setError(err.message);
       setLoading(false);
@@ -82,13 +66,21 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     try {
-      await authHelpers.sendMagicLink(email, `${window.location.origin}/login`);
+      await authHelpers.sendMagicLink(email, `${window.location.origin}/#/login`);
       setSent(true);
     } catch (err) {
       setError(err.message);
     }
     setLoading(false);
   };
+
+  if (isLoadingAuth) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-white animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">

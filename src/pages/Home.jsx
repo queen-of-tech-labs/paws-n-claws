@@ -26,7 +26,7 @@ const scrollTo = (id) => {
 };
 
 export default function Home() {
-  const [user, setUser] = useState(null);
+  const { user, isAuthenticated, isLoadingAuth } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [accountDisabled, setAccountDisabled] = useState(false);
   const [disabledReason, setDisabledReason] = useState(null);
@@ -35,18 +35,18 @@ export default function Home() {
 
   useEffect(() => {
     (async () => { try { await initializeOneSignal(); } catch (e) {} })();
-    api.auth.me().then((u) => {
-      setUser(u);
-      if (u) {
-        if (u.account_status === 'suspended' || u.account_status === 'banned') {
-          setAccountDisabled(true);
-          setDisabledReason(u.account_status);
-          return;
-        }
-        if (u.role !== 'admin') navigate(createPageUrl("Dashboard"));
+  }, []);
+
+  useEffect(() => {
+    if (!isLoadingAuth && user) {
+      if (user.account_status === 'suspended' || user.account_status === 'banned') {
+        setAccountDisabled(true);
+        setDisabledReason(user.account_status);
+        return;
       }
-    }).catch(() => {});
-  }, [navigate]);
+      if (user.role !== 'admin') navigate(createPageUrl("Dashboard"));
+    }
+  }, [user, isLoadingAuth, navigate]);
 
   const startCheckout = async () => {
     setCheckoutLoading(true);
@@ -73,15 +73,13 @@ export default function Home() {
     setCheckoutLoading(false);
   };
 
-  const handleUpgrade = async () => {
+  const handleUpgrade = () => {
     if (!user) {
-      // Save intent and go to login
       window.localStorage.setItem('pendingAction', 'upgrade');
       navigate('/login');
-      return;
+    } else {
+      navigate('/account');
     }
-    // Already logged in — go straight to checkout
-    await startCheckout();
   };
 
   if (accountDisabled) {
