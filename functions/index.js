@@ -12,9 +12,6 @@ initializeApp();
 const auth = getAuth();
 const db = getFirestore();
 
-// ─────────────────────────────────────────────
-// Helper: verify the caller is an admin
-// ─────────────────────────────────────────────
 async function assertAdmin(uid) {
   const profileSnap = await db.collection('profiles').doc(uid).get();
   if (!profileSnap.exists || profileSnap.data().role !== 'admin') {
@@ -22,48 +19,23 @@ async function assertAdmin(uid) {
   }
 }
 
-// ─────────────────────────────────────────────
-// changeUserRole
-// ─────────────────────────────────────────────
 exports.changeUserRole = onCall(async (request) => {
   const { userId, newRole } = request.data;
   await assertAdmin(request.auth?.uid);
-
-  if (!userId || !newRole) {
-    throw new HttpsError('invalid-argument', 'userId and newRole are required.');
-  }
-
+  if (!userId || !newRole) throw new HttpsError('invalid-argument', 'userId and newRole are required.');
   const validRoles = ['user', 'admin'];
-  if (!validRoles.includes(newRole)) {
-    throw new HttpsError('invalid-argument', `Invalid role. Must be one of: ${validRoles.join(', ')}`);
-  }
-
-  await db.collection('profiles').doc(userId).update({
-    role: newRole,
-    updatedAt: new Date(),
-  });
-
+  if (!validRoles.includes(newRole)) throw new HttpsError('invalid-argument', 'Invalid role.');
+  await db.collection('profiles').doc(userId).update({ role: newRole, updatedAt: new Date() });
   return { success: true, userId, newRole };
 });
 
-// ─────────────────────────────────────────────
-// changeUserSubscription
-// ─────────────────────────────────────────────
 exports.changeUserSubscription = onCall(async (request) => {
   const { userId, subscriptionStatus } = request.data;
   await assertAdmin(request.auth?.uid);
-
-  if (!userId || !subscriptionStatus) {
-    throw new HttpsError('invalid-argument', 'userId and subscriptionStatus are required.');
-  }
-
+  if (!userId || !subscriptionStatus) throw new HttpsError('invalid-argument', 'userId and subscriptionStatus are required.');
   const validStatuses = ['free', 'premium'];
-  if (!validStatuses.includes(subscriptionStatus)) {
-    throw new HttpsError('invalid-argument', `Invalid status. Must be one of: ${validStatuses.join(', ')}`);
-  }
-
+  if (!validStatuses.includes(subscriptionStatus)) throw new HttpsError('invalid-argument', 'Invalid status.');
   const isPremium = subscriptionStatus === 'premium';
-
   await db.collection('profiles').doc(userId).update({
     subscription_status: subscriptionStatus,
     premium_subscriber: isPremium,
@@ -71,74 +43,40 @@ exports.changeUserSubscription = onCall(async (request) => {
     pet_limit: isPremium ? 999 : 2,
     updatedAt: new Date(),
   });
-
   return { success: true, userId, subscriptionStatus };
 });
 
-// ─────────────────────────────────────────────
-// resetUserPassword
-// ─────────────────────────────────────────────
 exports.resetUserPassword = onCall(async (request) => {
   const { userEmail } = request.data;
   await assertAdmin(request.auth?.uid);
-
-  if (!userEmail) {
-    throw new HttpsError('invalid-argument', 'userEmail is required.');
-  }
-
+  if (!userEmail) throw new HttpsError('invalid-argument', 'userEmail is required.');
   try {
     await auth.generatePasswordResetLink(userEmail);
-    return {
-      success: true,
-      message: 'This user signs in with a magic link or Google. No password reset needed.',
-    };
+    return { success: true, message: 'This user signs in with a magic link or Google. No password reset needed.' };
   } catch (error) {
-    if (error.code === 'auth/user-not-found') {
-      throw new HttpsError('not-found', 'No Firebase Auth account found for this email.');
-    }
+    if (error.code === 'auth/user-not-found') throw new HttpsError('not-found', 'No Firebase Auth account found for this email.');
     throw new HttpsError('internal', error.message);
   }
 });
 
-// ─────────────────────────────────────────────
-// adminDeleteUser
-// ─────────────────────────────────────────────
 exports.adminDeleteUser = onCall(async (request) => {
   const { userId } = request.data;
   await assertAdmin(request.auth?.uid);
-
-  if (!userId) {
-    throw new HttpsError('invalid-argument', 'userId is required.');
-  }
-
-  if (userId === request.auth?.uid) {
-    throw new HttpsError('failed-precondition', 'You cannot delete your own account.');
-  }
-
+  if (!userId) throw new HttpsError('invalid-argument', 'userId is required.');
+  if (userId === request.auth?.uid) throw new HttpsError('failed-precondition', 'You cannot delete your own account.');
   try {
     await auth.deleteUser(userId);
   } catch (error) {
-    if (error.code !== 'auth/user-not-found') {
-      throw new HttpsError('internal', `Failed to delete auth user: ${error.message}`);
-    }
+    if (error.code !== 'auth/user-not-found') throw new HttpsError('internal', `Failed to delete auth user: ${error.message}`);
   }
-
   await db.collection('profiles').doc(userId).delete();
-
   return { success: true, userId };
 });
 
-// ─────────────────────────────────────────────
-// sendPasswordResetEmail (alias for admin use)
-// ─────────────────────────────────────────────
 exports.sendPasswordResetEmail = onCall(async (request) => {
   const { userEmail } = request.data;
   await assertAdmin(request.auth?.uid);
-
-  if (!userEmail) {
-    throw new HttpsError('invalid-argument', 'userEmail is required.');
-  }
-
+  if (!userEmail) throw new HttpsError('invalid-argument', 'userEmail is required.');
   try {
     await auth.generatePasswordResetLink(userEmail);
     return { success: true, message: 'Password reset link generated.' };
@@ -147,86 +85,45 @@ exports.sendPasswordResetEmail = onCall(async (request) => {
   }
 });
 
-// ─────────────────────────────────────────────
-// deleteUserAccount (self-delete)
-// ─────────────────────────────────────────────
 exports.deleteUserAccount = onCall(async (request) => {
   const { confirmation } = request.data;
   const uid = request.auth?.uid;
-
-  if (!uid) {
-    throw new HttpsError('unauthenticated', 'You must be logged in.');
-  }
-
-  if (confirmation !== 'DELETE') {
-    throw new HttpsError('invalid-argument', 'You must confirm with "DELETE".');
-  }
-
-  // Delete Firestore profile and related data
+  if (!uid) throw new HttpsError('unauthenticated', 'You must be logged in.');
+  if (confirmation !== 'DELETE') throw new HttpsError('invalid-argument', 'You must confirm with "DELETE".');
   const batch = db.batch();
   batch.delete(db.collection('profiles').doc(uid));
   await batch.commit();
-
-  // Delete from Firebase Auth
   await auth.deleteUser(uid);
-
   return { success: true };
 });
 
-// ─────────────────────────────────────────────
-// changeAdminPassword
-// ─────────────────────────────────────────────
 exports.changeAdminPassword = onCall(async (request) => {
   const uid = request.auth?.uid;
   await assertAdmin(uid);
-
-  // Firebase Auth handles password changes client-side
-  // This function just confirms admin status
-  return {
-    success: true,
-    message: 'Please use Firebase Auth to update your password directly.',
-  };
+  return { success: true, message: 'Please use Firebase Auth to update your password directly.' };
 });
 
-// ─────────────────────────────────────────────
-// updateUserPremiumTag (OneSignal premium tag sync)
-// Called on every login - must be fast and never crash the app
-// ─────────────────────────────────────────────
 exports.updateUserPremiumTag = onCall(async (request) => {
   const { userId, isPremium } = request.data;
   const uid = request.auth?.uid;
-
-  if (!uid) {
-    throw new HttpsError('unauthenticated', 'You must be logged in.');
-  }
-
+  if (!uid) throw new HttpsError('unauthenticated', 'You must be logged in.');
   try {
-    // Update the user's premium sync status in Firestore
     await db.collection('profiles').doc(uid).update({
       push_sync_pending: false,
       premium_tag_synced: true,
       updatedAt: new Date(),
     });
-
     return { success: true, isPremium: !!isPremium };
   } catch (error) {
-    // Don't crash the app if this fails - it's non-critical
     console.error('updateUserPremiumTag error:', error);
     return { success: false, error: error.message };
   }
 });
 
-// ─────────────────────────────────────────────
-// onboardUserNotifications (save OneSignal subscription ID)
-// ─────────────────────────────────────────────
 exports.onboardUserNotifications = onCall(async (request) => {
   const { subscriptionId, deviceName } = request.data;
   const uid = request.auth?.uid;
-
-  if (!uid) {
-    throw new HttpsError('unauthenticated', 'You must be logged in.');
-  }
-
+  if (!uid) throw new HttpsError('unauthenticated', 'You must be logged in.');
   try {
     await db.collection('profiles').doc(uid).update({
       onesignal_subscription_id: subscriptionId || null,
@@ -234,7 +131,6 @@ exports.onboardUserNotifications = onCall(async (request) => {
       notifications_enabled: true,
       updatedAt: new Date(),
     });
-
     return { success: true, subscriptionId };
   } catch (error) {
     console.error('onboardUserNotifications error:', error);
@@ -242,60 +138,28 @@ exports.onboardUserNotifications = onCall(async (request) => {
   }
 });
 
-// ─────────────────────────────────────────────
-// searchVetClinics (Google Places proxy)
-// ─────────────────────────────────────────────
 exports.searchVetClinics = onCall(async (request) => {
   const { query, location } = request.data;
-
-  if (!query && !location) {
-    throw new HttpsError('invalid-argument', 'query or location is required.');
-  }
-
-  // Return empty results - actual search happens via /api/places-search Vercel function
-  // This stub prevents CORS errors when the frontend falls back to Cloud Functions
+  if (!query && !location) throw new HttpsError('invalid-argument', 'query or location is required.');
   return { success: true, results: [], message: 'Use /api/places-search for vet searches.' };
 });
 
-// ─────────────────────────────────────────────
-// getVetClinicDetails (Google Places detail proxy)
-// ─────────────────────────────────────────────
 exports.getVetClinicDetails = onCall(async (request) => {
   const { placeId } = request.data;
-
-  if (!placeId) {
-    throw new HttpsError('invalid-argument', 'placeId is required.');
-  }
-
-  // Return empty - actual details fetched via Vercel /api functions
+  if (!placeId) throw new HttpsError('invalid-argument', 'placeId is required.');
   return { success: true, details: null, message: 'Use /api/places-search for place details.' };
 });
 
-// ─────────────────────────────────────────────
-// petHelperAI (AI assistant)
-// ─────────────────────────────────────────────
 exports.petHelperAI = onCall(
   { secrets: [ANTHROPIC_API_KEY] },
   async (request) => {
-    // Accept both 'message' and 'prompt' for compatibility
     const { prompt, message, petContext, mode } = request.data;
     const userInput = message || prompt;
     const uid = request.auth?.uid;
-
-    if (!uid) {
-      throw new HttpsError('unauthenticated', 'You must be logged in.');
-    }
-
-    if (!userInput) {
-      throw new HttpsError('invalid-argument', 'A message or prompt is required.');
-    }
-
+    if (!uid) throw new HttpsError('unauthenticated', 'You must be logged in.');
+    if (!userInput) throw new HttpsError('invalid-argument', 'A message or prompt is required.');
     const apiKey = ANTHROPIC_API_KEY.value();
-    if (!apiKey) {
-      throw new HttpsError('internal', 'AI service is not configured.');
-    }
-
-    // Build pet context string for the system prompt
+    if (!apiKey) throw new HttpsError('internal', 'AI service is not configured.');
     const petName = petContext?.name || 'the pet';
     const petSpecies = petContext?.species || 'unknown species';
     const petBreed = petContext?.breed ? `, ${petContext.breed} breed` : '';
@@ -304,23 +168,10 @@ exports.petHelperAI = onCall(
     const petAllergies = petContext?.allergies ? `. Known allergies: ${petContext.allergies}` : '';
     const petMedical = petContext?.medicalHistory ? `. Medical history: ${petContext.medicalHistory}` : '';
     const spayedNeutered = petContext?.spayedNeutered ? '. Spayed/neutered.' : '';
-
     const isSymptomCheck = mode === 'symptom_check';
-
     const systemPrompt = isSymptomCheck
-      ? `You are a helpful pet health assistant for the Paws & Claws app. The user is describing symptoms for their ${petSpecies} named ${petName}${petBreed}${petAge}${petWeight}${petAllergies}${petMedical}${spayedNeutered}.
-
-Analyze the symptoms described and provide:
-1. Possible causes (list the most likely ones)
-2. Urgency level (Can wait for regular vet appointment / Should see vet soon / Seek emergency care immediately)
-3. What to watch for at home
-4. Whether this needs immediate veterinary attention
-
-Always end with a reminder that this is not a diagnosis and they should consult their veterinarian. Be caring, clear, and concise.`
-      : `You are a knowledgeable, friendly pet care assistant for the Paws & Claws app. You are currently helping with questions about ${petName}, a ${petSpecies}${petBreed}${petAge}${petWeight}${petAllergies}${petMedical}${spayedNeutered}.
-
-Answer the user's questions about pet health, nutrition, behavior, grooming, and general care. Be specific to this pet's species and details when relevant. Be warm, helpful, and concise. For serious medical concerns, always recommend consulting a veterinarian. Do not diagnose medical conditions.`;
-
+      ? `You are a helpful pet health assistant for the Paws & Claws app. The user is describing symptoms for their ${petSpecies} named ${petName}${petBreed}${petAge}${petWeight}${petAllergies}${petMedical}${spayedNeutered}.\n\nAnalyze the symptoms described and provide:\n1. Possible causes (list the most likely ones)\n2. Urgency level (Can wait for regular vet appointment / Should see vet soon / Seek emergency care immediately)\n3. What to watch for at home\n4. Whether this needs immediate veterinary attention\n\nAlways end with a reminder that this is not a diagnosis and they should consult their veterinarian. Be caring, clear, and concise.`
+      : `You are a knowledgeable, friendly pet care assistant for the Paws & Claws app. You are currently helping with questions about ${petName}, a ${petSpecies}${petBreed}${petAge}${petWeight}${petAllergies}${petMedical}${spayedNeutered}.\n\nAnswer the user's questions about pet health, nutrition, behavior, grooming, and general care. Be specific to this pet's species and details when relevant. Be warm, helpful, and concise. For serious medical concerns, always recommend consulting a veterinarian. Do not diagnose medical conditions.`;
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -336,16 +187,13 @@ Answer the user's questions about pet health, nutrition, behavior, grooming, and
           messages: [{ role: 'user', content: userInput }],
         }),
       });
-
       if (!response.ok) {
         const err = await response.json();
         console.error('Anthropic API error:', err);
         throw new HttpsError('internal', 'AI service returned an error.');
       }
-
       const result = await response.json();
       const aiResponse = result.content?.[0]?.text || 'Sorry, I could not generate a response.';
-
       return { success: true, response: aiResponse, petContext: petContext || null };
     } catch (error) {
       console.error('petHelperAI error:', error);
@@ -354,53 +202,29 @@ Answer the user's questions about pet health, nutrition, behavior, grooming, and
   }
 );
 
-// ─────────────────────────────────────────────
-
-// ─────────────────────────────────────────────
-// createCheckoutSession (Stripe payments)
-// ─────────────────────────────────────────────
 exports.createCheckoutSession = onCall(
   { secrets: [STRIPE_SECRET_KEY] },
   async (request) => {
     const uid = request.auth?.uid;
-
-    if (!uid) {
-      throw new HttpsError('unauthenticated', 'You must be logged in.');
-    }
-
+    if (!uid) throw new HttpsError('unauthenticated', 'You must be logged in.');
     const { priceId, successUrl, cancelUrl, mode } = request.data;
-
-    if (!priceId) {
-      throw new HttpsError('invalid-argument', 'priceId is required.');
-    }
-
+    if (!priceId) throw new HttpsError('invalid-argument', 'priceId is required.');
     const stripeKey = STRIPE_SECRET_KEY.value();
-    if (!stripeKey) {
-      throw new HttpsError('internal', 'Stripe is not configured.');
-    }
-
+    if (!stripeKey) throw new HttpsError('internal', 'Stripe is not configured.');
     const stripe = require('stripe')(stripeKey);
-
     try {
-      // Get or create Stripe customer for this user
       const profileSnap = await db.collection('profiles').doc(uid).get();
       const profile = profileSnap.exists ? profileSnap.data() : {};
       let customerId = profile.stripe_customer_id;
-
       if (!customerId) {
         const customer = await stripe.customers.create({
           email: profile.email || '',
           metadata: { firebaseUID: uid },
         });
         customerId = customer.id;
-        await db.collection('profiles').doc(uid).update({
-          stripe_customer_id: customerId,
-        });
+        await db.collection('profiles').doc(uid).update({ stripe_customer_id: customerId });
       }
-
-      // Use mode passed from frontend ('payment' for one-time, 'subscription' for recurring)
       const checkoutMode = mode || 'subscription';
-
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         payment_method_types: ['card'],
@@ -410,7 +234,6 @@ exports.createCheckoutSession = onCall(
         cancel_url: cancelUrl || 'https://paws-n-claws.vercel.app/#/account',
         metadata: { firebaseUID: uid },
       });
-
       return { success: true, url: session.url };
     } catch (error) {
       console.error('Stripe error:', error);
@@ -419,19 +242,9 @@ exports.createCheckoutSession = onCall(
   }
 );
 
-  }
-);
-
-// ─────────────────────────────────────────────
-// cancelSubscription
-// ─────────────────────────────────────────────
 exports.cancelSubscription = onCall(async (request) => {
   const uid = request.auth?.uid;
-
-  if (!uid) {
-    throw new HttpsError('unauthenticated', 'You must be logged in.');
-  }
-
+  if (!uid) throw new HttpsError('unauthenticated', 'You must be logged in.');
   try {
     await db.collection('profiles').doc(uid).update({
       premium_subscriber: false,
@@ -440,10 +253,8 @@ exports.cancelSubscription = onCall(async (request) => {
       pet_limit: 2,
       updatedAt: new Date(),
     });
-
     return { success: true, message: 'Subscription cancelled successfully.' };
   } catch (error) {
     throw new HttpsError('internal', error.message);
   }
 });
-
