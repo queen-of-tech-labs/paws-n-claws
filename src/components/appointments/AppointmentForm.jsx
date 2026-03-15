@@ -129,6 +129,7 @@ export default function AppointmentForm({ open, onClose, petId, pets, appointmen
       }
 
       if (createReminder && reminderDueDate && data.pet_id && savedId) {
+        const tzOffset = new Date().getTimezoneOffset();
         const reminderData = {
           pet_id: data.pet_id,
           type: 'appointment',
@@ -140,6 +141,7 @@ export default function AppointmentForm({ open, onClose, petId, pets, appointmen
           status: 'pending',
           priority: 'medium',
           medication_times: reminderTime ? [reminderTime] : [],
+          timezone_offset: tzOffset,
           related_entity_type: 'appointment',
           related_entity_id: savedId,
         };

@@ -118,17 +118,44 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
       }
 
       if (createReminder && reminderDueDate && savedId) {
+        // Get user's timezone offset in minutes (e.g. EST = -300)
+        const tzOffset = new Date().getTimezoneOffset();
+
+        // For medication entries, use medication_times from the care log
+        // For other types, use the reminder time picker
+        const isMedication = data.type === 'medication';
+        const medTimes = isMedication && data.medication_times?.length > 0
+          ? data.medication_times  // local times e.g. ["05:45", "16:55"]
+          : reminderTime ? [reminderTime] : [];
+
+        // Calculate "remind before" time for medication
+        const minutesBefore = isMedication ? (parseInt(data.reminder_interval_days) || 0) : 0;
+
+        // Adjust medication times by "remind before" minutes
+        const adjustedMedTimes = medTimes.map(t => {
+          if (!t || minutesBefore === 0) return t;
+          const [h, m] = t.split(':').map(Number);
+          const totalMins = h * 60 + m - minutesBefore;
+          const adjH = Math.floor(((totalMins % 1440) + 1440) % 1440 / 60);
+          const adjM = ((totalMins % 1440) + 1440) % 1440 % 60;
+          return `${String(adjH).padStart(2,'0')}:${String(adjM).padStart(2,'0')}`;
+        });
+
         const reminderData = {
           pet_id: data.pet_id,
-          type: typeMapping[data.type] || 'other',
-          title: `${data.title} - Reminder`,
+          type: isMedication ? 'medication' : (typeMapping[data.type] || 'other'),
+          title: isMedication ? data.title : `${data.title} - Reminder`,
           description: `Reminder for: ${data.title}`,
           due_date: reminderDueDate,
-          due_time: convertToUTC(reminderTime),
+          due_time: isMedication ? null : convertToUTC(reminderTime),
           notification_sent: false,
           status: 'pending',
           priority: 'medium',
-          medication_times: reminderTime ? [reminderTime] : [],
+          // Store local times WITH timezone offset so scheduler can convert correctly
+          medication_times: adjustedMedTimes,
+          timezone_offset: tzOffset,  // minutes behind UTC (EST = 300)
+          recurrence: isMedication ? (data.recurrence || 'none') : 'none',
+          reminder_interval_days: isMedication ? parseInt(data.reminder_interval_days) || 0 : 0,
           related_entity_type: 'care_log',
           related_entity_id: savedId,
         };
