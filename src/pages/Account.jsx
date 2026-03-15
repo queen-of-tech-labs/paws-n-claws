@@ -115,21 +115,21 @@ export default function Account() {
   };
 
   const handleAddExtraPet = async () => {
-    if (window.self !== window.top) {
-      alert("Checkout only works from the published app. Please open it in a new tab.");
-      return;
-    }
-    
     setAddingPet(true);
     try {
       const response = await api.functions.invoke('createCheckoutSession', {
         priceId: 'price_1T2GY3JKBH02BiIFFmzFXk1o',
         mode: 'payment',
-        successUrl: window.location.origin + '/account',
-        cancelUrl: window.location.origin + '/account'
+        successUrl: 'https://paws-n-claws.vercel.app/#/account',
+        cancelUrl: 'https://paws-n-claws.vercel.app/#/account'
       });
       if (response.data?.url) {
-        window.location.href = response.data.url;
+        const url = response.data.url;
+        if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+          window.open(url, '_system');
+        } else {
+          window.location.href = url;
+        }
       } else {
         alert("Failed to start checkout. Please try again.");
       }
