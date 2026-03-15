@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fbAuth, auth as authHelpers } from '@/api/firebaseClient';
 import { isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
@@ -7,6 +7,25 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import api from '@/api/firebaseClient';
 
+async function runCheckout() {
+  const response = await api.functions.invoke('createCheckoutSession', {
+    priceId: 'price_1T2GVUJKBH02BiIFrQGvTDlQ',
+    mode: 'subscription',
+    successUrl: 'https://paws-n-claws.vercel.app/#/dashboard',
+    cancelUrl: 'https://paws-n-claws.vercel.app/#/'
+  });
+  if (response.data?.url) {
+    const url = response.data.url;
+    if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+      window.open(url, '_system');
+    } else {
+      window.location.href = url;
+    }
+    return true;
+  }
+  return false;
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -14,58 +33,48 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handlePostLoginRedirect = useCallback(async () => {
-    const pendingAction = window.localStorage.getItem('pendingAction');
-    console.log('Post login redirect, pendingAction:', pendingAction);
-    if (pendingAction === 'upgrade') {
-      window.localStorage.removeItem('pendingAction');
-      try {
-        const response = await api.functions.invoke('createCheckoutSession', {
-          priceId: 'price_1T2GVUJKBH02BiIFrQGvTDlQ',
-          mode: 'subscription',
-          successUrl: 'https://paws-n-claws.vercel.app/#/dashboard',
-          cancelUrl: 'https://paws-n-claws.vercel.app/#/'
-        });
-        if (response.data?.url) {
-          const url = response.data.url;
-          if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-            window.open(url, '_system');
-          } else {
-            window.location.href = url;
-          }
-          return;
-        }
-      } catch (err) {
-        console.error('Post-login checkout error:', err);
-      }
-    }
-    navigate('/dashboard');
-  }, [navigate]);
+  // Read and clear pendingAction ONCE when component mounts
+  const pendingAction = window.localStorage.getItem('pendingAction');
 
   useEffect(() => {
-    // Handle magic link callback
-    if (isSignInWithEmailLink(fbAuth, window.location.href)) {
-      let emailForSignIn = window.localStorage.getItem('emailForSignIn');
-      if (!emailForSignIn) {
-        emailForSignIn = window.prompt('Please provide your email for confirmation');
+    // Check if already logged in
+    fbAuth.authStateReady().then(async () => {
+      if (!fbAuth.currentUser) return;
+      // User is already logged in — handle pending action or go to dashboard
+      if (pendingAction === 'upgrade') {
+        window.localStorage.removeItem('pendingAction');
+        setLoading(true);
+        try {
+          const ok = await runCheckout();
+          if (!ok) navigate('/dashboard');
+        } catch (err) {
+          console.error('Checkout error:', err);
+          navigate('/dashboard');
+        }
+      } else {
+        navigate('/dashboard');
       }
-      setLoading(true);
-      signInWithEmailLink(fbAuth, emailForSignIn, window.location.href)
-        .then(() => {
-          window.localStorage.removeItem('emailForSignIn');
-          handlePostLoginRedirect();
-        })
-        .catch((err) => {
-          setError(err.message);
-          setLoading(false);
-        });
-    }
-
-    // Already logged in
-    fbAuth.authStateReady().then(() => {
-      if (fbAuth.currentUser) handlePostLoginRedirect();
     });
-  }, [handlePostLoginRedirect]);
+  }, []); // empty deps — only run once on mount
+
+  const handleGoogle = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      await authHelpers.redirectToLogin('/dashboard');
+      // After successful Google login, handle pending action
+      if (pendingAction === 'upgrade') {
+        window.localStorage.removeItem('pendingAction');
+        const ok = await runCheckout();
+        if (!ok) navigate('/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
+    }
+  };
 
   const handleMagicLink = async (e) => {
     e.preventDefault();
@@ -79,17 +88,6 @@ export default function LoginPage() {
       setError(err.message);
     }
     setLoading(false);
-  };
-
-  const handleGoogle = async () => {
-    setLoading(true);
-    try {
-      await authHelpers.redirectToLogin('/dashboard');
-      await handlePostLoginRedirect();
-    } catch (err) {
-      setError(err.message);
-      setLoading(false);
-    }
   };
 
   return (

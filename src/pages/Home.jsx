@@ -5,7 +5,7 @@ import { createPageUrl } from "../utils/index";
 import { Button } from "@/components/ui/button";
 import {
   PawPrint, Heart, FileText, Calendar, MapPin, Zap,
-  CheckCircle2, ArrowRight, Menu, X, ChevronDown, Lock
+  CheckCircle2, ArrowRight, Menu, X, Lock
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,9 +34,7 @@ export default function Home() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    (async () => {
-      try { await initializeOneSignal(); } catch (e) {}
-    })();
+    (async () => { try { await initializeOneSignal(); } catch (e) {} })();
     api.auth.me().then((u) => {
       setUser(u);
       if (u) {
@@ -50,12 +48,7 @@ export default function Home() {
     }).catch(() => {});
   }, [navigate]);
 
-  const handleUpgrade = async () => {
-    if (!user) {
-      window.localStorage.setItem("pendingAction", "upgrade");
-      navigate("/login");
-      return;
-    }
+  const startCheckout = async () => {
     setCheckoutLoading(true);
     try {
       const response = await api.functions.invoke('createCheckoutSession', {
@@ -78,6 +71,17 @@ export default function Home() {
       alert('Checkout error: ' + error.message);
     }
     setCheckoutLoading(false);
+  };
+
+  const handleUpgrade = async () => {
+    if (!user) {
+      // Save intent and go to login
+      window.localStorage.setItem('pendingAction', 'upgrade');
+      navigate('/login');
+      return;
+    }
+    // Already logged in — go straight to checkout
+    await startCheckout();
   };
 
   if (accountDisabled) {
