@@ -33,6 +33,7 @@ import AdminRescueSuggestions from './pages/AdminRescueSuggestions';
 import AdminGuideManagement from './pages/AdminGuideManagement';
 import Layout from './Layout';
 import LoginPage from './pages/Login';
+import CheckoutPage from './pages/Checkout';
 
 const PageNotFound = () => (
   <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
@@ -72,7 +73,7 @@ const AdminRoute = ({ children }) => {
 };
 
 const AppRoutes = () => {
-  const { isLoadingAuth } = useAuth();
+  const { isLoadingAuth, isAuthenticated } = useAuth();
 
   if (isLoadingAuth) {
     return (
@@ -84,10 +85,14 @@ const AppRoutes = () => {
 
   return (
     <Routes>
-      {/* Public routes */}
+      {/* Public routes — redirect to dashboard if already logged in */}
       <Route path="/" element={<Home />} />
-      <Route path="/login" element={<LoginPage />} />
-     
+      <Route path="/login" element={
+        isAuthenticated
+          ? <Navigate to="/dashboard" replace />
+          : <LoginPage />
+      } />
+      <Route path="/checkout" element={<CheckoutPage />} />
 
       {/* Protected routes wrapped in Layout */}
       <Route path="/dashboard" element={<ProtectedRoute><Layout currentPageName="Dashboard"><Dashboard /></Layout></ProtectedRoute>} />

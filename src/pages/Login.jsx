@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fbAuth, auth as authHelpers } from '@/api/firebaseClient';
-import { isSignInWithEmailLink, signInWithEmailLink, onAuthStateChanged } from 'firebase/auth';
+import { isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { PawPrint, Mail, Loader2, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-
-const isNative = !!(window.Capacitor?.isNativePlatform?.());
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -16,7 +14,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Handle magic link callback
+    // Handle magic link callback only
     if (isSignInWithEmailLink(fbAuth, window.location.href)) {
       let emailForSignIn = window.localStorage.getItem('emailForSignIn');
       if (!emailForSignIn) emailForSignIn = window.prompt('Please provide your email');
@@ -24,29 +22,20 @@ export default function LoginPage() {
       signInWithEmailLink(fbAuth, emailForSignIn, window.location.href)
         .then(() => {
           window.localStorage.removeItem('emailForSignIn');
-          navigate('/dashboard');
+          // App.jsx will detect isAuthenticated=true and redirect away from /login automatically
         })
         .catch((err) => { setError(err.message); setLoading(false); });
-      return;
     }
-
-    // If already logged in, go to dashboard (which handles pendingAction)
-    const unsub = onAuthStateChanged(fbAuth, (u) => {
-      if (u) {
-        unsub();
-        navigate('/dashboard');
-      }
-    });
-    return () => unsub();
-  }, [navigate]);
+  }, []);
 
   const handleGoogle = async () => {
     setLoading(true);
     setError('');
     try {
-      await authHelpers.redirectToLogin('/dashboard');
-      // onAuthStateChanged listener above will fire and navigate to /dashboard
-      // Dashboard will then check pendingAction and redirect to /account if needed
+      await authHelpers.redirectToLogin();
+      // AuthContext onAuthStateChanged fires → isAuthenticated=true
+      // App.jsx sees isAuthenticated=true on /login → redirects to /dashboard
+      // Dashboard checks pendingAction → redirects to /account if upgrade
     } catch (err) {
       setError(err.message);
       setLoading(false);
@@ -93,7 +82,6 @@ export default function LoginPage() {
             </div>
           ) : (
             <>
-              {/* Google login — shown on web and native */}
               <button onClick={handleGoogle} disabled={loading}
                 className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white hover:bg-slate-100 text-slate-900 rounded-xl font-medium transition mb-6 disabled:opacity-50">
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
