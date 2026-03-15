@@ -52,7 +52,8 @@ export default function Home() {
           window.localStorage.removeItem('pendingAction');
           navigate('/account');
         } else {
-          navigate('/dashboard');
+          console.log('HOME REDIRECT FIRING to dashboard');
+navigate('/dashboard');
         }
       }
     }
