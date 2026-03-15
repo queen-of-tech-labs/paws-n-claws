@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import api, { db, fbAuth } from '@/api/firebaseClient';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import api from '@/api/firebaseClient';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "../utils/index";
@@ -14,7 +13,6 @@ import {
 import { motion } from "framer-motion";
 import { format, isToday, isTomorrow, isBefore, addDays, differenceInDays } from "date-fns";
 import UpcomingReminders from "@/components/dashboard/UpcomingReminders";
-import { checkAndNotifyDueReminders, checkAndNotifyOverdueCare } from "@/components/services/oneSignalService";
 import { useAuth } from "@/lib/AuthContext";
 
 function calculateAge(dateOfBirth) {
@@ -67,63 +65,6 @@ export default function Dashboard() {
     enabled: !!user && (user?.premium_subscriber || user?.role === 'admin'),
   });
 
-  // Notification check — runs ONCE using direct Firestore query
-  // bypasses React Query timing issues entirely
-  const notifFiredRef = React.useRef(false);
-  useEffect(() => {
-    if (!user?.id || notifFiredRef.current) return;
-    const isPremium = user.premium_subscriber || user.role === 'admin';
-    if (!isPremium) return;
-
-    notifFiredRef.current = true;
-
-    const runNotificationCheck = async () => {
-      try {
-        const email = user.email;
-        const userId = user.id;
-        const todayStr = new Date().toISOString().split('T')[0];
-
-        console.log('Running direct Firestore notification check for:', email);
-
-        // Query reminders directly — no orderBy, no composite index needed
-        const remindersSnap = await getDocs(
-          query(collection(db, 'reminders'), where('created_by', '==', email))
-        );
-        const allReminders = remindersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        console.log('Direct reminders count:', allReminders.length);
-
-        // Query careLogs directly
-        const careSnap = await getDocs(
-          query(collection(db, 'careLogs'), where('created_by', '==', email))
-        );
-        const allCareLogs = careSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        console.log('Direct careLogs count:', allCareLogs.length);
-
-        // Query pets for names
-        const petsSnap = await getDocs(
-          query(collection(db, 'pets'), where('created_by', '==', email))
-        );
-        const allPets = petsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-        // Send notifications for due/overdue reminders
-        if (allReminders.length > 0) {
-          await checkAndNotifyDueReminders({ reminders: allReminders, pets: allPets, userId });
-        }
-
-        // Send notifications for overdue care logs
-        if (allCareLogs.length > 0) {
-          await checkAndNotifyOverdueCare({ careLogs: allCareLogs, pets: allPets, userId });
-        }
-
-        console.log('Notification check complete');
-      } catch (err) {
-        console.error('Notification check failed:', err);
-      }
-    };
-
-    // Small delay to let the app fully render first
-    setTimeout(runNotificationCheck, 3000);
-  }, [user?.id]);
 
   const acknowledgeMutation = useMutation({
     mutationFn: (reminderId) => api.entities.Reminder.update(reminderId, { status: "acknowledged" }),
