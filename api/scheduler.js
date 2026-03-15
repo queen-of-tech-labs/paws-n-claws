@@ -157,7 +157,7 @@ export default async function handler(req, res) {
         // Don't fire for reminders created in the last 10 minutes
         // This prevents immediate notification when a reminder is just saved
         const createdAt = reminder.createdAt?.toDate?.() || reminder.createdAt;
-        const createdRecently = createdAt && (now - new Date(createdAt)) < 10 * 60 * 1000;
+        const createdRecently = createdAt && (now - new Date(createdAt)) < 2 * 60 * 1000;
         if (createdRecently) {
           console.log(`Skipping recently created reminder: ${reminder.title}`);
           continue;
