@@ -65,20 +65,27 @@ export default function Dashboard() {
     enabled: !!user && (user?.premium_subscriber || user?.role === 'admin'),
   });
 
-  // Fire notifications when app opens and data is loaded
+  // Fire notifications once when data is loaded — use ref to prevent repeat firing
+  const notifFiredRef = React.useRef(false);
   useEffect(() => {
-    if (!user || !pets.length) return;
-    const timer = setTimeout(async () => {
-      console.log('Checking due reminders and care logs for notifications...');
+    // Wait until user, pets, and at least one data set is loaded
+    if (!user?.id || !pets.length || notifFiredRef.current) return;
+    // For premium/admin, wait for reminders to load too
+    const isPremium = user.premium_subscriber || user.role === 'admin';
+    if (isPremium && reminders.length === 0 && careLogs.length === 0) return;
+
+    notifFiredRef.current = true;
+    const run = async () => {
+      console.log('Firing notification check — reminders:', reminders.length, 'careLogs:', careLogs.length);
       if (reminders.length > 0) {
         await checkAndNotifyDueReminders({ reminders, pets, userId: user.id });
       }
       if (careLogs.length > 0) {
         await checkAndNotifyOverdueCare({ careLogs, pets, userId: user.id });
       }
-    }, 5000); // Wait 5 seconds after load to send
-    return () => clearTimeout(timer);
-  }, [user?.id, pets.length, reminders.length, careLogs.length]);
+    };
+    run();
+  }, [user?.id, user?.premium_subscriber, user?.role, pets.length, reminders.length, careLogs.length]);
 
   const acknowledgeMutation = useMutation({
     mutationFn: (reminderId) => api.entities.Reminder.update(reminderId, { status: "acknowledged" }),
