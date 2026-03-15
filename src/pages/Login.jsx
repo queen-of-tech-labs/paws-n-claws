@@ -6,6 +6,8 @@ import { PawPrint, Mail, Loader2, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+const isNative = !!(window.Capacitor?.isNativePlatform?.());
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -14,26 +16,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log('LOGIN PAGE MOUNTED');
-    console.log('pendingAction:', window.localStorage.getItem('pendingAction'));
-    console.log('currentUser on mount:', fbAuth.currentUser?.email);
-
-    // If already logged in on mount
-    fbAuth.authStateReady().then(() => {
-      console.log('authStateReady, currentUser:', fbAuth.currentUser?.email);
-      if (fbAuth.currentUser) {
-        const pending = window.localStorage.getItem('pendingAction');
-        console.log('Already logged in, pending:', pending);
-        if (pending === 'upgrade') {
-          window.localStorage.removeItem('pendingAction');
-          navigate('/account');
-        } else {
-          navigate('/dashboard');
-        }
-      }
-    });
-
-    // Handle magic link
+    // Handle magic link callback
     if (isSignInWithEmailLink(fbAuth, window.location.href)) {
       let emailForSignIn = window.localStorage.getItem('emailForSignIn');
       if (!emailForSignIn) emailForSignIn = window.prompt('Please provide your email');
@@ -41,42 +24,30 @@ export default function LoginPage() {
       signInWithEmailLink(fbAuth, emailForSignIn, window.location.href)
         .then(() => {
           window.localStorage.removeItem('emailForSignIn');
-          const pending = window.localStorage.getItem('pendingAction');
-          if (pending === 'upgrade') {
-            window.localStorage.removeItem('pendingAction');
-            navigate('/account');
-          } else {
-            navigate('/dashboard');
-          }
+          navigate('/dashboard');
         })
         .catch((err) => { setError(err.message); setLoading(false); });
+      return;
     }
+
+    // If already logged in, go to dashboard (which handles pendingAction)
+    const unsub = onAuthStateChanged(fbAuth, (u) => {
+      if (u) {
+        unsub();
+        navigate('/dashboard');
+      }
+    });
+    return () => unsub();
   }, [navigate]);
 
   const handleGoogle = async () => {
     setLoading(true);
     setError('');
-    const pending = window.localStorage.getItem('pendingAction');
-    console.log('handleGoogle called, pending:', pending);
     try {
       await authHelpers.redirectToLogin('/dashboard');
-      console.log('signInWithPopup completed, user:', fbAuth.currentUser?.email);
-      // Wait for auth state to update
-      await new Promise((resolve) => {
-        const unsub = onAuthStateChanged(fbAuth, (u) => {
-          console.log('onAuthStateChanged fired, user:', u?.email);
-          if (u) { unsub(); resolve(); }
-        });
-      });
-      console.log('Auth confirmed, navigating. pending:', pending);
-      if (pending === 'upgrade') {
-        window.localStorage.removeItem('pendingAction');
-        navigate('/account');
-      } else {
-        navigate('/dashboard');
-      }
+      // onAuthStateChanged listener above will fire and navigate to /dashboard
+      // Dashboard will then check pendingAction and redirect to /account if needed
     } catch (err) {
-      console.error('Google login error:', err);
       setError(err.message);
       setLoading(false);
     }
@@ -122,6 +93,7 @@ export default function LoginPage() {
             </div>
           ) : (
             <>
+              {/* Google login — shown on web and native */}
               <button onClick={handleGoogle} disabled={loading}
                 className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white hover:bg-slate-100 text-slate-900 rounded-xl font-medium transition mb-6 disabled:opacity-50">
                 <svg className="w-5 h-5" viewBox="0 0 24 24">

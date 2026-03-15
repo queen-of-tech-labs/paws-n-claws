@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import api from '@/api/firebaseClient';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "../utils/index";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,10 +27,18 @@ function calculateAge(dateOfBirth) {
 export default function Dashboard() {
   const [user, setUser] = useState(null);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   useEffect(() => {
+    // Check if user was redirected here after trying to upgrade
+    const pending = window.localStorage.getItem('pendingAction');
+    if (pending === 'upgrade') {
+      window.localStorage.removeItem('pendingAction');
+      navigate('/account');
+      return;
+    }
     api.auth.me().then(setUser).catch(() => {});
-  }, []);
+  }, [navigate]);
 
   const { data: pets = [] } = useQuery({
     queryKey: ["pets"],
