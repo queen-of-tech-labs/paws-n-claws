@@ -18,6 +18,9 @@ const isNative = () => !!(window.Capacitor?.isNativePlatform?.());
 
 // Fast synchronous check — never blocks, never hangs
 function hasNotificationPermission() {
+  // On native, always return true — Android controls permission at OS level
+  // If user denied, notifications simply won't deliver (no harm done)
+  if (isNative()) return true;
   try {
     if (isNative()) {
       const os = window.plugins?.OneSignal;
