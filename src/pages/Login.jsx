@@ -5,7 +5,6 @@ import { isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { PawPrint, Mail, Loader2, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useAuth } from '@/lib/AuthContext';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -13,23 +12,22 @@ export default function LoginPage() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { isAuthenticated, isLoadingAuth } = useAuth();
 
-  // Once auth is resolved, redirect if already logged in
   useEffect(() => {
-    if (!isLoadingAuth && isAuthenticated) {
-      const pending = window.localStorage.getItem('pendingAction');
-      if (pending === 'upgrade') {
-        // Don't clear it here — let the checkout page handle it
-        navigate('/checkout');
-      } else {
-        navigate('/dashboard');
+    // If already logged in, redirect appropriately
+    fbAuth.authStateReady().then(() => {
+      if (fbAuth.currentUser) {
+        const pending = window.localStorage.getItem('pendingAction');
+        if (pending === 'upgrade') {
+          window.localStorage.removeItem('pendingAction');
+          navigate('/account');
+        } else {
+          navigate('/dashboard');
+        }
       }
-    }
-  }, [isAuthenticated, isLoadingAuth, navigate]);
+    });
 
-  // Handle magic link callback
-  useEffect(() => {
+    // Handle magic link callback
     if (isSignInWithEmailLink(fbAuth, window.location.href)) {
       let emailForSignIn = window.localStorage.getItem('emailForSignIn');
       if (!emailForSignIn) {
@@ -39,21 +37,33 @@ export default function LoginPage() {
       signInWithEmailLink(fbAuth, emailForSignIn, window.location.href)
         .then(() => {
           window.localStorage.removeItem('emailForSignIn');
-          // Auth state change will trigger the useEffect above
+          const pending = window.localStorage.getItem('pendingAction');
+          if (pending === 'upgrade') {
+            window.localStorage.removeItem('pendingAction');
+            navigate('/account');
+          } else {
+            navigate('/dashboard');
+          }
         })
         .catch((err) => {
           setError(err.message);
           setLoading(false);
         });
     }
-  }, []);
+  }, [navigate]);
 
   const handleGoogle = async () => {
     setLoading(true);
     setError('');
     try {
       await authHelpers.redirectToLogin('/dashboard');
-      // Auth state change in AuthContext will trigger redirect via useEffect above
+      const pending = window.localStorage.getItem('pendingAction');
+      if (pending === 'upgrade') {
+        window.localStorage.removeItem('pendingAction');
+        navigate('/account');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err.message);
       setLoading(false);
@@ -73,14 +83,6 @@ export default function LoginPage() {
     }
     setLoading(false);
   };
-
-  if (isLoadingAuth) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-white animate-spin" />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
