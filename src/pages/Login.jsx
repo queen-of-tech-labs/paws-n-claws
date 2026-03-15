@@ -5,6 +5,7 @@ import { isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { PawPrint, Mail, Loader2, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import api from '@/api/firebaseClient';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -13,7 +14,34 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  // Handle magic link callback
+  const handlePostLoginRedirect = async () => {
+    // Check if user was trying to upgrade
+    const pendingAction = window.localStorage.getItem('pendingAction');
+    if (pendingAction === 'upgrade') {
+      window.localStorage.removeItem('pendingAction');
+      try {
+        const response = await api.functions.invoke('createCheckoutSession', {
+          priceId: 'price_1T2GVUJKBH02BiIFrQGvTDlQ',
+          mode: 'subscription',
+          successUrl: 'https://paws-n-claws.vercel.app/#/dashboard',
+          cancelUrl: 'https://paws-n-claws.vercel.app/#/'
+        });
+        if (response.data?.url) {
+          const url = response.data.url;
+          if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+            window.open(url, '_system');
+          } else {
+            window.location.href = url;
+          }
+          return;
+        }
+      } catch (err) {
+        console.error('Post-login checkout error:', err);
+      }
+    }
+    navigate('/dashboard');
+  };
+
   useEffect(() => {
     if (isSignInWithEmailLink(fbAuth, window.location.href)) {
       let emailForSignIn = window.localStorage.getItem('emailForSignIn');
@@ -24,7 +52,7 @@ export default function LoginPage() {
       signInWithEmailLink(fbAuth, emailForSignIn, window.location.href)
         .then(() => {
           window.localStorage.removeItem('emailForSignIn');
-          navigate('/dashboard');
+          handlePostLoginRedirect();
         })
         .catch((err) => {
           setError(err.message);
@@ -32,9 +60,8 @@ export default function LoginPage() {
         });
     }
 
-    // Already logged in
     fbAuth.authStateReady().then(() => {
-      if (fbAuth.currentUser) navigate('/dashboard');
+      if (fbAuth.currentUser) handlePostLoginRedirect();
     });
   }, [navigate]);
 
@@ -56,7 +83,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await authHelpers.redirectToLogin('/dashboard');
-      navigate('/dashboard');
+      await handlePostLoginRedirect();
     } catch (err) {
       setError(err.message);
       setLoading(false);

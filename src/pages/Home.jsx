@@ -51,7 +51,11 @@ export default function Home() {
   }, [navigate]);
 
   const handleUpgrade = async () => {
-    if (!user) { navigate('/login'); return; }
+    if (!user) {
+      window.localStorage.setItem("pendingAction", "upgrade");
+      navigate("/login");
+      return;
+    }
     setCheckoutLoading(true);
     try {
       const response = await api.functions.invoke('createCheckoutSession', {
