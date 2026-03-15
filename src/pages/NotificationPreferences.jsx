@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Bell, Loader2, Check, Crown, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
-import { requestNotificationPermission, registerDevice } from "@/components/services/notificationPermissionService";
+import { checkNotificationPermission, registerDevice } from "@/components/services/notificationPermissionService";
 
 const isNative = () => !!(window.Capacitor?.isNativePlatform?.());
 
@@ -22,6 +22,7 @@ export default function NotificationPreferences() {
   });
   const [saved, setSaved] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [permissionAlreadyGranted, setPermissionAlreadyGranted] = useState(false);
 
   useEffect(() => {
     api.auth.me().then(async (u) => {
@@ -37,6 +38,13 @@ export default function NotificationPreferences() {
         await api.auth.updateMe(updatedPrefs);
       }
       setPreferences(updatedPrefs);
+
+      // Check if permission already granted on native
+      if (isNative()) {
+        const status = await checkNotificationPermission();
+        if (status === 'granted') setPermissionAlreadyGranted(true);
+      }
+
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -46,15 +54,31 @@ export default function NotificationPreferences() {
     setPermissionDenied(false);
     try {
       const currentUser = await api.auth.me();
-      const permitted = await requestNotificationPermission();
-      if (permitted) {
-        try {
+
+      // If already granted on native, skip the request and just register
+      if (isNative()) {
+        const currentStatus = await checkNotificationPermission();
+        if (currentStatus === 'granted') {
           await registerDevice(currentUser.id);
-        } catch (deviceError) {
-          console.error('Failed to register device:', deviceError);
+          setPreferences({ ...preferences, notification_push: true });
+          await api.auth.updateMe({ ...preferences, notification_push: true });
+          setPermissionAlreadyGranted(true);
+          setSaved(true);
+          setTimeout(() => setSaved(false), 3000);
+          setSaving(false);
+          return;
         }
+      }
+
+      // Otherwise request permission
+      const { requestNotificationPermission } = await import('@/components/services/notificationPermissionService');
+      const permitted = await requestNotificationPermission();
+
+      if (permitted) {
+        await registerDevice(currentUser.id);
         setPreferences({ ...preferences, notification_push: true });
         await api.auth.updateMe({ ...preferences, notification_push: true });
+        setPermissionAlreadyGranted(true);
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
       } else {
@@ -62,7 +86,7 @@ export default function NotificationPreferences() {
         setPreferences({ ...preferences, notification_push: false });
       }
     } catch (error) {
-      console.error('Failed to request notification permission:', error);
+      console.error('Failed to enable notifications:', error);
       setPermissionDenied(true);
     } finally {
       setSaving(false);
@@ -113,6 +137,7 @@ export default function NotificationPreferences() {
             </div>
           </CardHeader>
           <CardContent className="space-y-8">
+
             {/* Email Notifications */}
             <div className="flex items-center justify-between pb-6 border-b border-slate-800">
               <div className="flex-1">
@@ -146,18 +171,25 @@ export default function NotificationPreferences() {
                     className="ml-4"
                   />
                   {isPremium && preferences.notification_push && (
-                    <Button
-                      onClick={handleEnableNotifications}
-                      disabled={saving}
-                      size="sm"
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      {saving ? (
-                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Requesting...</>
-                      ) : (
-                        'Enable Notifications'
-                      )}
-                    </Button>
+                    permissionAlreadyGranted ? (
+                      <div className="flex items-center gap-1 text-green-400 text-sm">
+                        <Check className="w-4 h-4" />
+                        Enabled
+                      </div>
+                    ) : (
+                      <Button
+                        onClick={handleEnableNotifications}
+                        disabled={saving}
+                        size="sm"
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        {saving ? (
+                          <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Enabling...</>
+                        ) : (
+                          'Enable Notifications'
+                        )}
+                      </Button>
+                    )
                   )}
                 </div>
               </div>
@@ -166,7 +198,7 @@ export default function NotificationPreferences() {
                   <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
                   <p className="text-sm text-red-400">
                     {isNative()
-                      ? 'Notification permission denied. Please go to your phone Settings → Apps → Paws & Claws → Notifications and enable them.'
+                      ? 'Notification permission denied. Please go to phone Settings → Apps → Paws & Claws → Notifications and enable them.'
                       : 'Notification permission denied. Please enable notifications in your browser settings.'}
                   </p>
                 </div>
