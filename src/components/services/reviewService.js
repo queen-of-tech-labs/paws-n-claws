@@ -19,6 +19,10 @@ const MIN_DAYS_SINCE_INSTALL = 7;
 const MIN_DAYS_BETWEEN_PROMPTS = 60;
 const MIN_CARE_TASKS_COMPLETED = 5;
 
+// Use a variable for the package name so Rollup/Vite does not statically
+// analyze and try to bundle this native-only Capacitor plugin on web builds.
+const IN_APP_REVIEW_PLUGIN = '@capacitor-community/in-app-review';
+
 function isNativeAndroid() {
   return !!(window.Capacitor?.isNativePlatform?.());
 }
@@ -42,12 +46,12 @@ export function recordInstallDate() {
 
 /**
  * Attempts to show the in-app review prompt if all conditions are met.
- * Safe to call — silently exits if conditions aren't satisfied.
+ * Safe to call — silently exits if conditions are not satisfied.
  *
  * @param {number} careTasksCompleted - Total care tasks the user has completed
  */
 export async function maybeRequestReview(careTasksCompleted = 0) {
-  // Only on Android
+  // Only on native Android
   if (!isNativeAndroid()) return;
 
   // Check milestone
@@ -62,12 +66,14 @@ export async function maybeRequestReview(careTasksCompleted = 0) {
   if (lastPrompted && getDaysSince(lastPrompted) < MIN_DAYS_BETWEEN_PROMPTS) return;
 
   try {
-    const { InAppReview } = await import('@capacitor-community/in-app-review');
+    // Dynamic import via variable prevents Rollup from bundling this
+    // native-only plugin into the web build
+    const { InAppReview } = await import(/* @vite-ignore */ IN_APP_REVIEW_PLUGIN);
     await InAppReview.requestReview();
     localStorage.setItem(REVIEW_STORAGE_KEY, new Date().toISOString());
     console.log('✓ In-app review prompt requested');
   } catch (err) {
-    // Non-critical — silently fail if plugin isn't available
+    // Non-critical — silently fail if plugin is not available
     console.warn('In-app review not available:', err?.message);
   }
 }
