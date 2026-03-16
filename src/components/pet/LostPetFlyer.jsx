@@ -153,12 +153,13 @@ export default function LostPetFlyer({ open, onClose, pet, user }) {
             <div style={{
               background: '#ef4444',
               color: '#fff',
-              fontSize: '22px',
+              fontSize: '18px',
               fontWeight: '900',
-              letterSpacing: '4px',
-              padding: '8px 20px',
+              letterSpacing: '2px',
+              padding: '8px 16px',
               borderRadius: '8px',
               display: 'inline-block',
+              whiteSpace: 'nowrap',
               boxShadow: '0 4px 15px rgba(239,68,68,0.5)',
             }}>
               🚨 MISSING {pet.species?.toUpperCase() || 'PET'} 🚨
@@ -234,8 +235,8 @@ export default function LostPetFlyer({ open, onClose, pet, user }) {
             }}>
               <span style={{ fontSize: '16px' }}>📍</span>
               <div>
-                <div style={{ color: '#fbbf24', fontSize: '10px', fontWeight: '700', letterSpacing: '1px' }}>LAST SEEN</div>
-                <div style={{ color: '#fff', fontSize: '14px', fontWeight: '600' }}>{lastSeen}</div>
+                <div style={{ color: '#fbbf24', fontSize: '10px', fontWeight: '700', letterSpacing: '1px', textAlign: 'center' }}>LAST SEEN</div>
+                <div style={{ color: '#fff', fontSize: '14px', fontWeight: '600', textAlign: 'center' }}>{lastSeen}</div>
               </div>
             </div>
           )}
