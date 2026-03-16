@@ -228,16 +228,11 @@ export default function LostPetFlyer({ open, onClose, pet, user }) {
               borderRadius: '8px',
               padding: '8px 12px',
               marginBottom: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
+              textAlign: 'center',
               position: 'relative',
             }}>
-              <span style={{ fontSize: '16px' }}>📍</span>
-              <div>
-                <div style={{ color: '#fbbf24', fontSize: '10px', fontWeight: '700', letterSpacing: '1px', textAlign: 'center' }}>LAST SEEN</div>
-                <div style={{ color: '#fff', fontSize: '14px', fontWeight: '600', textAlign: 'center' }}>{lastSeen}</div>
-              </div>
+              <div style={{ color: '#fbbf24', fontSize: '10px', fontWeight: '700', letterSpacing: '1px', marginBottom: '4px', textAlign: 'center' }}>📍 LAST SEEN</div>
+              <div style={{ color: '#fff', fontSize: '14px', fontWeight: '600', textAlign: 'center' }}>{lastSeen}</div>
             </div>
           )}
 
@@ -262,16 +257,17 @@ export default function LostPetFlyer({ open, onClose, pet, user }) {
             borderRadius: '10px',
             padding: '12px',
             position: 'relative',
+            textAlign: 'center',
           }}>
-            <div style={{ color: '#94a3b8', fontSize: '11px', fontWeight: '700', letterSpacing: '1px', marginBottom: '8px' }}>
+            <div style={{ color: '#94a3b8', fontSize: '11px', fontWeight: '700', letterSpacing: '1px', marginBottom: '8px', textAlign: 'center' }}>
               IF FOUND, PLEASE CONTACT
             </div>
             {user?.full_name && (
-              <div style={{ color: '#fff', fontSize: '15px', fontWeight: '700', marginBottom: '4px' }}>
+              <div style={{ color: '#fff', fontSize: '15px', fontWeight: '700', marginBottom: '4px', textAlign: 'center' }}>
                 {user.full_name}
               </div>
             )}
-            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
               {contactPhone && (
                 <div style={{ color: '#60a5fa', fontSize: '14px', fontWeight: '600' }}>
                   📞 {contactPhone}
