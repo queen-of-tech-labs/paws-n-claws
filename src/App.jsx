@@ -1,4 +1,6 @@
 import { Toaster } from "@/components/ui/toaster";
+import { useEffect } from 'react';
+import { App as CapApp } from '@capacitor/app';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClientInstance } from '@/lib/query-client';
 import { HashRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
@@ -146,6 +148,19 @@ const AppRoutes = () => {
 };
 
 function App() {
+  useEffect(() => {
+    // Handle Android hardware back button
+    const handler = CapApp.addListener('backButton', ({ canGoBack }) => {
+      if (canGoBack) {
+        window.history.back();
+      } else {
+        // If at root, minimize app instead of exiting
+        CapApp.minimizeApp();
+      }
+    });
+    return () => { handler.then(h => h.remove()); };
+  }, []);
+
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
