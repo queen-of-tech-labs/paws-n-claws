@@ -21,6 +21,16 @@ import HealthRecordItem from "../components/health/HealthRecordItem";
 import AppointmentForm from "../components/appointments/AppointmentForm";
 import AppointmentCard from "../components/appointments/AppointmentCard";
 
+function calculateAge(dateOfBirth) {
+  const birth = new Date(dateOfBirth);
+  const now = new Date();
+  const years = now.getFullYear() - birth.getFullYear();
+  const months = now.getMonth() - birth.getMonth();
+  if (years === 0) return months <= 0 ? "newborn" : `${months} month${months > 1 ? "s" : ""}`;
+  if (years === 1 && months < 0) return `${12 + months} months`;
+  return `${years} year${years > 1 ? "s" : ""} old`;
+}
+
 export default function PetDetail() {
   // With HashRouter, query params are in the hash portion
   const hashSearch = window.location.hash.includes('?')
