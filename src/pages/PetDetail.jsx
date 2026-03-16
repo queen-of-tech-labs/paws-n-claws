@@ -164,6 +164,14 @@ export default function PetDetail() {
             </div>
           </div>
 
+          {/* Lost Pet Button */}
+          <button
+            onClick={() => setShowFlyer(true)}
+            className="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors text-sm font-medium mb-3"
+          >
+            🚨 Report as Lost / Generate Flyer
+          </button>
+
           {/* Badges */}
           <div className="flex flex-wrap gap-2 mb-4">
             {pet.weight && <Badge variant="secondary" className="bg-orange-50 text-[#6B5B50] border-0">{pet.weight} lbs</Badge>}
