@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+const BASE_URL = window.Capacitor?.isNativePlatform?.() ? 'https://paws-n-claws.vercel.app' : '';
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,14 +15,14 @@ import GoogleMap from "@/components/GoogleMap";
 import api from "@/api/firebaseClient";
 
 async function geocodeLocation(locationStr) {
-  const res = await fetch(`/api/geocode?address=${encodeURIComponent(locationStr)}`);
+  const res = await fetch(`${BASE_URL}/api/geocode?address=${encodeURIComponent(locationStr)}`);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Location not found. Please try a different address or ZIP code.");
   return { lat: data.lat, lng: data.lng };
 }
 
 async function searchRescues(lat, lng) {
-  const res = await fetch(`/api/rescue-search?lat=${lat}&lng=${lng}`);
+  const res = await fetch(`${BASE_URL}/api/rescue-search?lat=${lat}&lng=${lng}`);
   if (!res.ok) throw new Error("Failed to fetch rescue listings.");
   const data = await res.json();
   return data.results || [];
