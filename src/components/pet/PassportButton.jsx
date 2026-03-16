@@ -27,7 +27,7 @@ export default function PassportButton({ petId, isPremium }) {
           <p className="text-xs text-[#6B5B50]/70">Share your pet's medical history with vets &amp; sitters</p>
         </div>
         <button
-          onClick={() => navigate("/premium")}
+          onClick={() => navigate("/account")}
           className="text-xs font-semibold text-[#F97066] whitespace-nowrap"
         >
           Unlock →
