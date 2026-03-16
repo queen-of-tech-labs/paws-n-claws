@@ -1,15 +1,15 @@
 /**
  * In-App Review Service
- * Uses the Google Play In-App Review API via @capacitor-community/in-app-review
  *
- * Triggers a native review prompt at moments of user delight.
- * Google controls whether the dialog actually appears — it may be suppressed
- * if the user has already reviewed or if the quota has been exceeded.
+ * Requests a Google Play in-app review using the Capacitor App plugin's
+ * built-in ability to open URLs, with a direct market:// deep link as the
+ * trigger. This approach requires no extra packages beyond what is already
+ * installed (@capacitor/app).
  *
- * Rules we enforce:
- * - Only on native Android (never on web)
- * - Only after the user has been active for at least 7 days
- * - Only after a meaningful milestone (5+ care tasks completed)
+ * Rules enforced:
+ * - Only on native Android
+ * - Only after the user has been active 7+ days
+ * - Only after 5+ care tasks completed
  * - Never more than once every 60 days
  */
 
@@ -18,10 +18,7 @@ const REVIEW_INSTALL_KEY = 'paws_review_install_date';
 const MIN_DAYS_SINCE_INSTALL = 7;
 const MIN_DAYS_BETWEEN_PROMPTS = 60;
 const MIN_CARE_TASKS_COMPLETED = 5;
-
-// Use a variable for the package name so Rollup/Vite does not statically
-// analyze and try to bundle this native-only Capacitor plugin on web builds.
-const IN_APP_REVIEW_PLUGIN = '@capacitor-community/in-app-review';
+const PLAY_STORE_PACKAGE = 'paws.claws.pet.tracker';
 
 function isNativeAndroid() {
   return !!(window.Capacitor?.isNativePlatform?.());
@@ -45,8 +42,9 @@ export function recordInstallDate() {
 }
 
 /**
- * Attempts to show the in-app review prompt if all conditions are met.
- * Safe to call — silently exits if conditions are not satisfied.
+ * Attempts to prompt the user for a review if all conditions are met.
+ * Opens the Play Store listing directly — the simplest reliable approach
+ * that works with any Capacitor version.
  *
  * @param {number} careTasksCompleted - Total care tasks the user has completed
  */
@@ -66,14 +64,12 @@ export async function maybeRequestReview(careTasksCompleted = 0) {
   if (lastPrompted && getDaysSince(lastPrompted) < MIN_DAYS_BETWEEN_PROMPTS) return;
 
   try {
-    // Dynamic import via variable prevents Rollup from bundling this
-    // native-only plugin into the web build
-    const { InAppReview } = await import(/* @vite-ignore */ IN_APP_REVIEW_PLUGIN);
-    await InAppReview.requestReview();
+    const { App } = await import('@capacitor/app');
+    // Opens the Play Store page for the app — user can leave a review from there
+    await App.openUrl({ url: `market://details?id=${PLAY_STORE_PACKAGE}` });
     localStorage.setItem(REVIEW_STORAGE_KEY, new Date().toISOString());
-    console.log('✓ In-app review prompt requested');
+    console.log('✓ Play Store review page opened');
   } catch (err) {
-    // Non-critical — silently fail if plugin is not available
-    console.warn('In-app review not available:', err?.message);
+    console.warn('Review prompt not available:', err?.message);
   }
 }
