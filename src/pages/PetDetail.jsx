@@ -346,6 +346,7 @@ export default function PetDetail() {
       {showCareForm && <CareLogForm open={true} onClose={() => setShowCareForm(false)} petId={petId} entry={editCare} onSaved={() => { refreshAll(); setShowCareForm(false); }} />}
       {showHealthForm && <HealthRecordForm open={true} onClose={() => setShowHealthForm(false)} petId={petId} record={editHealth} onSaved={() => { refreshAll(); setShowHealthForm(false); }} />}
       {showApptForm && <AppointmentForm open={true} onClose={() => setShowApptForm(false)} petId={petId} appointment={editAppt} onSaved={() => { refreshAll(); setShowApptForm(false); }} />}
+    </div>
     <LostPetFlyer
       open={showFlyer}
       onClose={() => setShowFlyer(false)}
