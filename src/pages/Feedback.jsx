@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import api from '@/api/firebaseClient';
+import { db, fbAuth } from '@/api/firebaseClient';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,10 +31,12 @@ export default function Feedback() {
         ...formData,
         browser_info: typeof navigator !== 'undefined' 
           ? `${navigator.userAgent.substring(0, 100)}`
-          : "Unknown"
+          : "Unknown",
+        submitted_by: fbAuth.currentUser?.email || 'anonymous',
+        created_at: serverTimestamp(),
       };
       
-      await api.entities.Feedback.create(data);
+      await addDoc(collection(db, 'feedback'), data);
       setSubmitted(true);
       setFormData({ type: "bug", title: "", description: "", priority: "medium" });
       

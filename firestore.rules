@@ -136,5 +136,10 @@ service cloud.firestore {
         allow create: if true;
       }
     }
+
+    match /feedback/{docId} {
+      allow create: if isAuthenticated();
+      allow read: if isAdmin();
+    }
   }
 }
