@@ -1,14 +1,14 @@
 // src/components/lostpet/CreateAlertForm.jsx
 import { useState, useEffect } from "react";
 import { collection, addDoc, serverTimestamp, getDocs, query, where } from "firebase/firestore";
-import { db } from "@/api/firebaseClient";
+import { db, fbFunctions } from "@/api/firebaseClient";
 import { httpsCallable } from "firebase/functions";
-import { fbFunctions } from "@/api/firebaseClient";
 import { X, MapPin } from "lucide-react";
 
 export default function CreateAlertForm({ user, onClose, onSaved, prefillPet = null }) {
   const [pets, setPets] = useState([]);
   const [selectedPetId, setSelectedPetId] = useState(prefillPet?.id || "");
+  const [coords, setCoords] = useState(null); // { lat, lng } captured when GPS is used
   const [form, setForm] = useState({
     petName: prefillPet?.name || "",
     species: prefillPet?.species || "",
@@ -67,6 +67,7 @@ export default function CreateAlertForm({ user, onClose, onSaved, prefillPet = n
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
+        setCoords({ lat: latitude, lng: longitude }); // save for notification
         try {
           const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
@@ -102,18 +103,29 @@ export default function CreateAlertForm({ user, onClose, onSaved, prefillPet = n
         sightingCount: 0,
       });
 
-      // Try to send push notification to nearby users (non-blocking)
+      // Notify nearby users (non-blocking — won't break form if it fails)
       try {
         const notify = httpsCallable(fbFunctions, "notifyLostPet");
-        await notify({ alertId: docRef.id, petName: form.petName });
+        await notify({
+          alertId: docRef.id,
+          petName: form.petName,
+          lastSeenAddress: form.lastSeenAddress,
+          lat: coords?.lat || null,
+          lng: coords?.lng || null,
+          radiusMiles: 25,
+        });
       } catch (notifErr) {
-        console.warn("Notification failed (non-critical):", notifErr);
+        console.warn("Push notification failed (non-critical):", notifErr);
       }
 
-      onSaved(docRef.id);
+      onSaved();
     } catch (err) {
       console.error("Create alert error:", err);
-      setError("Failed to post alert. Please try again.");
+      if (err.code === "permission-denied") {
+        setError("Permission denied. Make sure you are logged in and have updated your Firestore rules.");
+      } else {
+        setError(`Failed to post alert: ${err.message}`);
+      }
     } finally {
       setSaving(false);
     }

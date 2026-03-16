@@ -3,6 +3,7 @@ const { defineSecret } = require('firebase-functions/params');
 
 const ANTHROPIC_API_KEY = defineSecret('ANTHROPIC_API_KEY');
 const STRIPE_SECRET_KEY = defineSecret('STRIPE_SECRET_KEY');
+const ONESIGNAL_API_KEY = defineSecret('ONESIGNAL_API_KEY');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore } = require('firebase-admin/firestore');
@@ -258,3 +259,121 @@ exports.cancelSubscription = onCall(async (request) => {
     throw new HttpsError('internal', error.message);
   }
 });
+
+// ── Lost Pet Network Notifications ────────────────────────────────────────────
+
+const ONESIGNAL_APP_ID = '83fd3bf4-a60e-4651-8a59-6141189b6831';
+
+// Notifies users within 25 miles/km of the lost pet's last known location
+exports.notifyLostPet = onCall(
+  { secrets: [ONESIGNAL_API_KEY] },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError('unauthenticated', 'You must be logged in.');
+
+    const { alertId, petName, lastSeenAddress, lat, lng, radiusMiles = 25 } = request.data;
+    if (!alertId || !petName) throw new HttpsError('invalid-argument', 'alertId and petName are required.');
+
+    const apiKey = ONESIGNAL_API_KEY.value();
+    if (!apiKey) throw new HttpsError('internal', 'OneSignal is not configured.');
+
+    const locationText = lastSeenAddress ? ` near ${lastSeenAddress}` : '';
+
+    // Build the notification body
+    const notifBody = {
+      app_id: ONESIGNAL_APP_ID,
+      headings: { en: '🚨 Lost Pet Alert' },
+      contents: { en: `${petName} was reported missing${locationText}. Can you help?` },
+      url: `https://paws-n-claws.vercel.app/#/lost-pet/${alertId}`,
+      chrome_web_icon: 'https://paws-n-claws.vercel.app/logo192.png',
+    };
+
+    // If we have coordinates, use OneSignal location filters to target nearby users.
+    // If no coordinates, do NOT send — we never notify all subscribers.
+    if (!lat || !lng) {
+      console.log('notifyLostPet: no coordinates provided, skipping notification.');
+      return { success: true, recipients: 0, skipped: true };
+    }
+
+    const radiusKm = radiusMiles * 1.60934;
+    notifBody.filters = [
+      { field: 'location', radius: radiusKm, lat: lat, long: lng }
+    ];
+
+    try {
+      const response = await fetch('https://onesignal.com/api/v1/notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${apiKey}`,
+        },
+        body: JSON.stringify(notifBody),
+      });
+      const data = await response.json();
+      console.log('notifyLostPet OneSignal response:', JSON.stringify(data));
+      return { success: true, recipients: data.recipients || 0, usedLocation: !!(lat && lng) };
+    } catch (error) {
+      console.error('notifyLostPet error:', error);
+      throw new HttpsError('internal', `Notification failed: ${error.message}`);
+    }
+  }
+);
+
+// Notifies the pet owner when someone reports a sighting
+exports.notifySighting = onCall(
+  { secrets: [ONESIGNAL_API_KEY] },
+  async (request) => {
+    // This is called anonymously so no auth check needed
+    const { alertId, petName, location, ownerEmail } = request.data;
+    if (!alertId || !petName) throw new HttpsError('invalid-argument', 'alertId and petName are required.');
+
+    const apiKey = ONESIGNAL_API_KEY.value();
+    if (!apiKey) throw new HttpsError('internal', 'OneSignal is not configured.');
+
+    try {
+      // Look up the owner's OneSignal subscription ID from their profile
+      let targetSubscriptionId = null;
+      if (ownerEmail) {
+        const profilesSnap = await db.collection('profiles')
+          .where('email', '==', ownerEmail)
+          .limit(1)
+          .get();
+        if (!profilesSnap.empty) {
+          targetSubscriptionId = profilesSnap.docs[0].data().onesignal_subscription_id;
+        }
+      }
+
+      const locationText = location ? ` at ${location}` : '';
+      const notifBody = {
+        app_id: ONESIGNAL_APP_ID,
+        headings: { en: '👀 Sighting Reported!' },
+        contents: { en: `Someone reported seeing ${petName}${locationText}. Check the details!` },
+        url: `https://paws-n-claws.vercel.app/#/lost-pet/${alertId}`,
+        chrome_web_icon: 'https://paws-n-claws.vercel.app/logo192.png',
+      };
+
+      // If we have the owner's subscription ID, notify just them
+      // Otherwise fall back to notifying all users
+      if (targetSubscriptionId) {
+        notifBody.include_subscription_ids = [targetSubscriptionId];
+      } else {
+        notifBody.included_segments = ['Subscribed Users'];
+      }
+
+      const response = await fetch('https://onesignal.com/api/v1/notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${apiKey}`,
+        },
+        body: JSON.stringify(notifBody),
+      });
+      const data = await response.json();
+      console.log('notifySighting OneSignal response:', JSON.stringify(data));
+      return { success: true };
+    } catch (error) {
+      console.error('notifySighting error:', error);
+      throw new HttpsError('internal', `Notification failed: ${error.message}`);
+    }
+  }
+);

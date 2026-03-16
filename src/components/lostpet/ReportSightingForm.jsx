@@ -68,7 +68,7 @@ export default function ReportSightingForm({ alertId, petName, onClose, onSaved 
         const notify = httpsCallable(fbFunctions, "notifySighting");
         await notify({ alertId, petName, location: form.location, note: form.note });
       } catch (notifErr) {
-        console.warn("Notification failed (non-critical):", notifErr);
+        console.warn("Sighting notification failed (non-critical):", notifErr);
       }
 
       onSaved();
