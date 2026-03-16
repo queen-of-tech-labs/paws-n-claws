@@ -8,9 +8,14 @@ import GoogleMap from "@/components/GoogleMap";
 import { motion } from "framer-motion";
 
 
+// Use absolute URL on native Android, relative on web
+const BASE_URL = window.Capacitor?.isNativePlatform?.()
+  ? 'https://paws-n-claws.vercel.app'
+  : '';
+
 // Geocode via server-side Vercel function (avoids CORS)
 async function geocodeLocation(locationStr) {
-  const res = await fetch(`/api/geocode?address=${encodeURIComponent(locationStr)}`);
+  const res = await fetch(`${BASE_URL}/api/geocode?address=${encodeURIComponent(locationStr)}`);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Location not found. Please try a different address or ZIP code.");
   return { lat: data.lat, lng: data.lng };
@@ -20,9 +25,9 @@ async function geocodeLocation(locationStr) {
 async function searchVets(lat, lng, keyword, isEmergency) {
   const query = isEmergency
     ? "emergency veterinary hospital"
-    : `veterinarian ${keyword || ""}`.trim();
+    : keyword?.trim() || "veterinarian";
 
-  const res = await fetch(`/api/places-search?lat=${lat}&lng=${lng}&query=${encodeURIComponent(query)}`);
+  const res = await fetch(`${BASE_URL}/api/places-search?lat=${lat}&lng=${lng}&query=${encodeURIComponent(query)}`);
   if (!res.ok) throw new Error("Failed to fetch vet listings.");
   const data = await res.json();
   return data.results || [];
