@@ -1,8 +1,33 @@
-import React from "react";
-import { Lock, Zap } from "lucide-react";
+import React, { useState } from "react";
+import { Lock, Zap, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import api from "@/api/firebaseClient";
 
 export default function PremiumFeatureLocked({ featureName, onUpgrade }) {
+  const [loading, setLoading] = useState(false);
+
+  const handleUpgradeClick = async () => {
+    setLoading(true);
+    try {
+      const response = await api.functions.invoke('createCheckoutSession', {
+        priceId: 'price_1T2GVUJKBH02BiIFrQGvTDlQ',
+        mode: 'subscription',
+        successUrl: window.location.origin + '/#/account?session_id={CHECKOUT_SESSION_ID}',
+        cancelUrl: window.location.origin + '/#/account'
+      });
+      if (response.data?.url) {
+        window.location.href = response.data.url;
+      } else {
+        alert("Failed to start checkout. Please try again.");
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error("Upgrade error:", error);
+      alert("Failed to start checkout. Please try again.");
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 to-slate-900 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
@@ -36,10 +61,18 @@ export default function PremiumFeatureLocked({ featureName, onUpgrade }) {
           </div>
 
           <Button
-            onClick={onUpgrade}
+            onClick={handleUpgradeClick}
+            disabled={loading}
             className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 rounded-lg mb-3"
           >
-            Upgrade to Premium
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading...
+              </span>
+            ) : (
+              "Upgrade to Premium"
+            )}
           </Button>
 
           <Button

@@ -1,6 +1,6 @@
 {
   "appId": "paws.claws.pet.tracker",
-  "appName": "Paws and Claws",
+  "appName": "Paws & Claws",
   "webDir": "dist",
   "server": {
     "androidScheme": "https"
