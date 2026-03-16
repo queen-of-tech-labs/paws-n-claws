@@ -54,14 +54,15 @@ export default function PetDetail() {
   const [showApptForm, setShowApptForm] = useState(false);
   const [editAppt, setEditAppt] = useState(null);
 
+  useEffect(() => {
+    api.auth.me().then(setUser).catch(() => {});
+  }, []);
+
   const { user: authUser } = useAuth();
   const isPremium = authUser?.premium_subscriber === true;
 
   const [healthData, setHealthData] = useState({
-    vaccinations: [],
-    vetVisits: [],
-    medications: [],
-    conditions: [],
+    vaccinations: [], vetVisits: [], medications: [], conditions: [],
   });
 
   async function loadHealthData() {
@@ -74,20 +75,12 @@ export default function PetDetail() {
         const q = query(colRef, orderBy("date", "desc"));
         const snap = await getDocs(q);
         results[type] = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      } catch {
-        results[type] = [];
-      }
+      } catch { results[type] = []; }
     }
     setHealthData(results);
   }
 
-  useEffect(() => {
-    api.auth.me().then(setUser).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    loadHealthData();
-  }, [petId]);
+  useEffect(() => { loadHealthData(); }, [petId]);
 
   const { data: pets = [] } = useQuery({
     queryKey: ["pets"],
@@ -208,7 +201,9 @@ export default function PetDetail() {
           </button>
 
           {/* Health Passport Button */}
-          <PassportButton petId={petId} isPremium={isPremium} />
+          <div className="mb-3">
+            <PassportButton petId={petId} isPremium={isPremium} />
+          </div>
 
           {/* Badges */}
           <div className="flex flex-wrap gap-2 mb-4">
