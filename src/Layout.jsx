@@ -367,8 +367,12 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </header>
 
-        <main className="flex-1 overflow-x-hidden" style={{ paddingBottom: window.Capacitor?.isNativePlatform?.() ? 'env(safe-area-inset-bottom, 16px)' : 0 }}>
+        <main className="flex-1 overflow-x-hidden">
           {children}
+          {/* Safe area spacer for Android navigation bar */}
+          {window.Capacitor?.isNativePlatform?.() && (
+            <div style={{ height: '80px', flexShrink: 0 }} aria-hidden="true" />
+          )}
         </main>
       </div>
 
