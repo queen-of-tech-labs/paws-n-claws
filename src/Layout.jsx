@@ -21,6 +21,7 @@ import {
   checkAndNotifyOverdueCare,
 } from "@/components/services/oneSignalService";
 import PremiumUnlockedDialog from "@/components/shared/PremiumUnlockedDialog";
+import { StatusBar, Style } from '@capacitor/status-bar';
 import NotificationPermissionDeniedModal from "@/components/shared/NotificationPermissionDeniedModal";
 import InstallPrompt from "@/components/shared/InstallPrompt";
 
@@ -55,6 +56,13 @@ const adminNavItems = [
 ];
 
 export default function Layout({ children, currentPageName }) {
+  useEffect(() => {
+    if (window.Capacitor?.isNativePlatform?.()) {
+      StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
+      StatusBar.setBackgroundColor({ color: '#0f172a' }).catch(() => {});
+    }
+  }, []);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [showPremiumUnlocked, setShowPremiumUnlocked] = useState(false);
@@ -359,7 +367,7 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </header>
 
-        <main className="flex-1 overflow-x-hidden">
+        <main className="flex-1 overflow-x-hidden" style={{ paddingBottom: window.Capacitor?.isNativePlatform?.() ? 'env(safe-area-inset-bottom, 16px)' : 0 }}>
           {children}
         </main>
       </div>

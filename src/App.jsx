@@ -1,5 +1,6 @@
 import { Toaster } from "@/components/ui/toaster";
-import { App as CapApp } from '@capacitor/app';
+import { App as CapApp } from "@capacitor/app";
+
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClientInstance } from '@/lib/query-client';
 import { HashRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
