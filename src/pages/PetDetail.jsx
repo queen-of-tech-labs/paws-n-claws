@@ -68,19 +68,31 @@ export default function PetDetail() {
 
   const { data: careLogs = [] } = useQuery({
     queryKey: ["careLogs", petId],
-    queryFn: () => user && petId ? api.entities.CareLog.filter({ pet_id: petId, created_by: user.email }, "-date") : [],
+    queryFn: async () => {
+      if (!user || !petId) return [];
+      const results = await api.entities.CareLog.filterOnly({ pet_id: petId, created_by: user.email });
+      return results.sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
+    },
     enabled: !!petId && !!user,
   });
 
   const { data: healthRecords = [] } = useQuery({
     queryKey: ["healthRecords", petId],
-    queryFn: () => user && petId ? api.entities.HealthRecord.filter({ pet_id: petId, created_by: user.email }, "-date") : [],
+    queryFn: async () => {
+      if (!user || !petId) return [];
+      const results = await api.entities.HealthRecord.filterOnly({ pet_id: petId, created_by: user.email });
+      return results.sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
+    },
     enabled: !!petId && !!user,
   });
 
   const { data: appointments = [] } = useQuery({
     queryKey: ["appointments", petId],
-    queryFn: () => user && petId ? api.entities.Appointment.filter({ pet_id: petId, created_by: user.email }, "-date") : [],
+    queryFn: async () => {
+      if (!user || !petId) return [];
+      const results = await api.entities.Appointment.filterOnly({ pet_id: petId, created_by: user.email });
+      return results.sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
+    },
     enabled: !!petId && !!user,
   });
 
