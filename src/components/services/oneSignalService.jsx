@@ -114,10 +114,18 @@ export async function initializeOneSignal(userId = null) {
           welcomeNotification: { disable: true },
         });
 
+        // Wait up to 3 seconds for a push subscription to become available
+        let subWaitAttempts = 0;
+        while (!window.OneSignal?.User?.pushSubscription?.id && subWaitAttempts < 30) {
+          await new Promise(r => setTimeout(r, 100));
+          subWaitAttempts++;
+        }
+
         if (userId) {
           try {
             await window.OneSignal.login(userId);
           } catch (loginErr) {
+            // 409 means this UID is already linked — safe to ignore, subscription still works
             if (loginErr?.message?.includes('409') || loginErr?.status === 409) {
               console.warn('OneSignal login 409 - user already linked, continuing');
             } else {

@@ -36,8 +36,17 @@ export async function registerDeviceOnLogin(user) {
 
     // Step 3: Register device
     if (permissionGranted || isNative()) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const deviceToken = await getSubscriptionId();
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      let deviceToken = await getSubscriptionId();
+
+      // Retry up to 5 times if token is still null — subscription may still be registering
+      if (!deviceToken) {
+        for (let i = 0; i < 5; i++) {
+          await new Promise(r => setTimeout(r, 1000));
+          deviceToken = await getSubscriptionId();
+          if (deviceToken) break;
+        }
+      }
       console.log('Device token:', deviceToken);
 
       // Login user to OneSignal with their Firebase UID
