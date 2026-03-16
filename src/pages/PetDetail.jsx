@@ -110,6 +110,7 @@ export default function PetDetail() {
   const age = pet.date_of_birth ? calculateAge(pet.date_of_birth) : null;
 
   return (
+    <>
     <div className="p-6 lg:p-8 max-w-4xl mx-auto">
       {/* Back button */}
       <Link to={createPageUrl("PetProfiles")} className="inline-flex items-center gap-2 text-sm text-[#6B5B50]/60 hover:text-[#F97066] mb-6 transition-colors">
@@ -285,5 +286,6 @@ export default function PetDetail() {
       pet={pet}
       user={user}
     />
+    </>
   );
 }
