@@ -345,7 +345,7 @@ export default function Account() {
             <CardContent className="space-y-4">
               <p className="text-white font-semibold">$6.99 <span className="text-sm text-slate-400 font-normal">/month</span></p>
               <ul className="space-y-3">
-                {["Unlimited Pets", "Community Pet Parent Forum", "Detailed Pet Care Guides", "Vet Network", "24/7 AI Pet Assistant", "Symptom Checker"].map((feature) => (
+                {["Unlimited Pets", "Community Pet Parent Forum", "Detailed Pet Care Guides", "Vet Network", "24/7 AI Pet Assistant", "Symptom Checker", "Digital Pet Health Passport", "Lost Pet Flyer Generator", "Lost Pet Recovery Network"].map((feature) => (
                   <li key={feature} className="flex items-center gap-3 text-slate-300">
                     <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
                     {feature}
