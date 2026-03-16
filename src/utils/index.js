@@ -33,6 +33,7 @@ export function createPageUrl(pageNameOrPath) {
     AdminUserDetail: '/admin/user',
     AdminRescueSuggestions: '/admin/rescue-suggestions',
     AdminGuideManagement: '/admin/guides',
+    LostPetNetwork: '/lost-pet-network',
   };
 
   const path = pageMap[pageName] || `/${pageName.toLowerCase().replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()}`;

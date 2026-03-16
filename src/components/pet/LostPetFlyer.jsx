@@ -3,16 +3,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Share2, Download, AlertTriangle } from "lucide-react";
+import { Share2, Download, AlertTriangle, Radio } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export default function LostPetFlyer({ open, onClose, pet, user }) {
   const flyerRef = useRef(null);
+  const navigate = useNavigate();
   const [contactPhone, setContactPhone] = useState(user?.phone || '');
   const [contactEmail, setContactEmail] = useState(user?.email || '');
   const [lastSeen, setLastSeen] = useState('');
   const [reward, setReward] = useState('');
   const [sharing, setSharing] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [flyerGenerated, setFlyerGenerated] = useState(false);
+
+  const isPremium = user?.premium_subscriber === true;
 
   if (!pet) return null;
 
@@ -53,6 +58,7 @@ export default function LostPetFlyer({ open, onClose, pet, user }) {
       }
     } finally {
       setSharing(false);
+      setFlyerGenerated(true);
     }
   };
 
@@ -76,6 +82,7 @@ export default function LostPetFlyer({ open, onClose, pet, user }) {
       alert('Could not download. Please screenshot the flyer instead.');
     } finally {
       setDownloading(false);
+      setFlyerGenerated(true);
     }
   };
 
@@ -307,6 +314,46 @@ export default function LostPetFlyer({ open, onClose, pet, user }) {
             {downloading ? 'Saving...' : 'Save Image'}
           </Button>
         </div>
+
+        {/* Lost Pet Network upsell — shown after flyer is shared/downloaded */}
+        {flyerGenerated && (
+          <div className="mt-4 rounded-xl border p-4 flex items-start gap-3 bg-slate-800/50 border-slate-600">
+            <Radio className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              {isPremium ? (
+                <>
+                  <p className="text-white text-sm font-semibold mb-1">
+                    Also post to the Lost Pet Network
+                  </p>
+                  <p className="text-slate-400 text-xs mb-3">
+                    Get live sightings from the community and notify nearby users.
+                  </p>
+                  <button
+                    onClick={() => { onClose(); navigate("/lost-pet-network"); }}
+                    className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-colors"
+                  >
+                    Post to Lost Pet Network →
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="text-white text-sm font-semibold mb-1">
+                    🐾 Want the community to help find {pet.name}?
+                  </p>
+                  <p className="text-slate-400 text-xs mb-3">
+                    Upgrade to Premium to post a live alert — get notified when someone spots them nearby.
+                  </p>
+                  <button
+                    onClick={() => { onClose(); navigate("/account"); }}
+                    className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-colors"
+                  >
+                    Unlock Premium →
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

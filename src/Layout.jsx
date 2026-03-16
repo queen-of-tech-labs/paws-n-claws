@@ -4,7 +4,7 @@ import { createPageUrl } from "./utils/index";
 import api from '@/api/firebaseClient';
 import {
   PawPrint, Home, Dog, Heart, FileText, Calendar,
-  MapPin, HandHeart, Menu, X, ChevronDown, LogOut, User, CreditCard, MessageSquare
+  MapPin, HandHeart, Menu, X, ChevronDown, LogOut, User, CreditCard, MessageSquare, Radio
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +41,7 @@ const premiumNavItems = [
   { name: "Care Guides", icon: FileText, page: "PetCareGuides" },
   { name: "Vet Network", icon: MapPin, page: "VetNetwork" },
   { name: "AI Assistant", icon: Home, page: "PetAssistant" },
+  { name: "Lost Pet Network", icon: Radio, page: "LostPetNetwork" },
 ];
 
 const otherNavItems = [

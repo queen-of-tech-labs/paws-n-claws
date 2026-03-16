@@ -122,5 +122,19 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
     }
+
+    // Lost Pet Recovery Network — public read, auth required to post
+    match /lostPetAlerts/{alertId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() &&
+        (resource.data.createdBy == request.auth.token.email || isAdmin());
+
+      // Sightings are anonymous — anyone can read and create
+      match /sightings/{sightingId} {
+        allow read: if true;
+        allow create: if true;
+      }
+    }
   }
 }
