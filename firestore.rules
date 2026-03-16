@@ -24,25 +24,25 @@ service cloud.firestore {
 
     // All main collections - simplified rules that definitely work for list queries
     match /pets/{docId} {
-      allow read: if isAuthenticated();
+      allow read: if true; // public read needed for Pet Health Passport (shared link)
       allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
     }
 
     match /careLogs/{docId} {
-      allow read: if isAuthenticated();
+      allow read: if true; // public read needed for Pet Health Passport (shared link)
       allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
     }
 
     match /healthRecords/{docId} {
-      allow read: if isAuthenticated();
+      allow read: if true; // public read needed for Pet Health Passport (shared link)
       allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
     }
 
     match /appointments/{docId} {
-      allow read: if isAuthenticated();
+      allow read: if true; // public read needed for Pet Health Passport (shared link)
       allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated() && (isOwnerByEmail() || isAdmin());
     }

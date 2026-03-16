@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import api from '@/api/firebaseClient';
+import api, { db } from '@/api/firebaseClient';
+import { doc, getDoc } from 'firebase/firestore';
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "../utils/index";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,9 +64,10 @@ export default function AdminUserDetail() {
         setCurrentUser(adminUser);
 
         if (userId) {
-          const users = await api.entities.User.filter({ id: userId });
-          if (users && users.length > 0) {
-            const userData = users[0];
+          // Use getDoc directly — Firestore can't filter by document ID with where()
+          const userSnap = await getDoc(doc(db, 'profiles', userId));
+          if (userSnap.exists()) {
+            const userData = { id: userSnap.id, ...userSnap.data() };
             setUser(userData);
             setEditData({
               full_name: userData.full_name || "",

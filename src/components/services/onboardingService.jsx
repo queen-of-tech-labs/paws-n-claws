@@ -69,7 +69,7 @@ export async function completeOnboarding(userId) {
       const user = await api.auth.me();
       if (user?.premium_subscriber && window.OneSignal) {
         console.log('🏆 Setting premium tag...');
-        await window.OneSignal.sendTag('premium', 'true');
+        await window.OneSignal.User.addTag('premium', 'true'); // v16 API
         console.log('✓ Premium tag set');
       }
     } catch (tagError) {

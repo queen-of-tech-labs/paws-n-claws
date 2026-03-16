@@ -48,7 +48,7 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     try {
-      await authHelpers.sendMagicLink(email, `https://paws-n-claws.vercel.app`);
+      await authHelpers.sendMagicLink(email, `https://paws-n-claws.vercel.app/#/dashboard`);
       setSent(true);
     } catch (err) {
       setError(err.message);
