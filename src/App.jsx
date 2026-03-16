@@ -35,6 +35,7 @@ import AdminUsers from './pages/AdminUsers';
 import AdminUserDetail from './pages/AdminUserDetail';
 import AdminRescueSuggestions from './pages/AdminRescueSuggestions';
 import AdminGuideManagement from './pages/AdminGuideManagement';
+import AdminFeedback from './pages/AdminFeedback';
 import Layout from './Layout';
 import LoginPage from './pages/Login';
 import PetPassport from './pages/PetPassport';
@@ -143,6 +144,7 @@ const AppRoutes = () => {
         <Route path="/admin/user" element={<AdminRoute><Layout currentPageName="AdminUserDetail"><AdminUserDetail /></Layout></AdminRoute>} />
         <Route path="/admin/rescue-suggestions" element={<AdminRoute><Layout currentPageName="AdminRescueSuggestions"><AdminRescueSuggestions /></Layout></AdminRoute>} />
         <Route path="/admin/guides" element={<AdminRoute><Layout currentPageName="AdminGuideManagement"><AdminGuideManagement /></Layout></AdminRoute>} />
+        <Route path="/admin/feedback" element={<AdminRoute><Layout currentPageName="AdminFeedback"><AdminFeedback /></Layout></AdminRoute>} />
         <Route path="/passport/:petId" element={<PetPassport />} />
         <Route path="/lost-pet-network" element={<ProtectedRoute><Layout currentPageName="LostPetNetwork"><LostPetNetwork /></Layout></ProtectedRoute>} />
         <Route path="/lost-pet/:alertId" element={<LostPetAlertDetail />} />

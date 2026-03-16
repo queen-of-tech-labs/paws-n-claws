@@ -55,6 +55,7 @@ const adminNavItems = [
   { name: "Admin Control", icon: User, page: "AdminUsers" },
   { name: "Review Suggestions", icon: User, page: "AdminRescueSuggestions" },
   { name: "Manage Guides", icon: FileText, page: "AdminGuideManagement" },
+  { name: "Review Feedback", icon: MessageSquare, page: "AdminFeedback" },
 ];
 
 export default function Layout({ children, currentPageName }) {

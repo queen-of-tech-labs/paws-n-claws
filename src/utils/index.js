@@ -33,6 +33,7 @@ export function createPageUrl(pageNameOrPath) {
     AdminUserDetail: '/admin/user',
     AdminRescueSuggestions: '/admin/rescue-suggestions',
     AdminGuideManagement: '/admin/guides',
+    AdminFeedback: '/admin/feedback',
     LostPetNetwork: '/lost-pet-network',
   };
 
