@@ -1,21 +1,19 @@
 /**
  * Vercel Serverless Function: /api/places-search
- * Supports both nearby search (lat/lng) and text search (query only)
+ * Supports text search with optional location bias
  */
 
 export default async function handler(req, res) {
-  // CORS headers — required for native Android app
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
   const { lat, lng, query } = req.query;
 
-  if (!lat && !lng && !query) {
-    return res.status(400).json({ error: 'query or lat/lng is required' });
+  if (!query && !lat) {
+    return res.status(400).json({ error: 'query or location is required' });
   }
 
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
@@ -26,9 +24,52 @@ export default async function handler(req, res) {
   try {
     let results = [];
 
-    if (lat && lng) {
-      // Nearby search with optional text query
-      const url = 'https://places.googleapis.com/v1/places:searchNearby';
+    if (query && query.trim()) {
+      // TEXT SEARCH — finds by name, works with or without location
+      // This is better for finding specific clinics like "Bradford Hills Vet"
+      const searchText = query.includes('vet') || query.includes('animal') || query.includes('pet')
+        ? query
+        : `${query} veterinarian`;
+
+      const body = {
+        textQuery: searchText,
+        maxResultCount: 20,
+      };
+
+      // If location provided, bias results toward user's area
+      if (lat && lng) {
+        body.locationBias = {
+          circle: {
+            center: {
+              latitude: parseFloat(lat),
+              longitude: parseFloat(lng),
+            },
+            radius: 40000.0, // 25 mile bias
+          },
+        };
+      }
+
+      const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': apiKey,
+          'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.id,places.nationalPhoneNumber,places.websiteUri',
+        },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+      console.log('Text search status:', response.status, 'results:', data.places?.length || 0, 'query:', searchText);
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || `Places API error: ${response.status}`);
+      }
+
+      results = (data.places || []).map(normalizePlace);
+
+    } else if (lat && lng) {
+      // NEARBY SEARCH — no query, just find nearby vets
       const body = {
         includedTypes: ['veterinary_care'],
         maxResultCount: 20,
@@ -38,12 +79,12 @@ export default async function handler(req, res) {
               latitude: parseFloat(lat),
               longitude: parseFloat(lng),
             },
-            radius: 40000.0, // 25 miles
+            radius: 40000.0,
           },
         },
       };
 
-      const response = await fetch(url, {
+      const response = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -55,44 +96,6 @@ export default async function handler(req, res) {
 
       const data = await response.json();
       console.log('Nearby search status:', response.status, 'results:', data.places?.length || 0);
-
-      if (!response.ok) {
-        throw new Error(data.error?.message || `Places API error: ${response.status}`);
-      }
-
-      results = (data.places || []).map(normalizePlace);
-
-      // Filter by query text if provided
-      if (query && results.length > 0) {
-        const q = query.toLowerCase();
-        const filtered = results.filter(r =>
-          r.name?.toLowerCase().includes(q) ||
-          r.vicinity?.toLowerCase().includes(q)
-        );
-        // Use filtered if we got matches, otherwise return all nearby
-        if (filtered.length > 0) results = filtered;
-      }
-
-    } else if (query) {
-      // Text-only search using Places Text Search
-      const url = `https://places.googleapis.com/v1/places:searchText`;
-      const body = {
-        textQuery: query,
-        maxResultCount: 20,
-      };
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Goog-Api-Key': apiKey,
-          'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.id,places.nationalPhoneNumber,places.websiteUri',
-        },
-        body: JSON.stringify(body),
-      });
-
-      const data = await response.json();
-      console.log('Text search status:', response.status, 'results:', data.places?.length || 0);
 
       if (!response.ok) {
         throw new Error(data.error?.message || `Places API error: ${response.status}`);
