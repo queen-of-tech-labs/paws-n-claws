@@ -21,6 +21,7 @@ import {
   checkAndNotifyOverdueCare,
 } from "@/components/services/oneSignalService";
 import PremiumUnlockedDialog from "@/components/shared/PremiumUnlockedDialog";
+import { recordInstallDate } from "@/components/services/reviewService";
 import { StatusBar, Style } from '@capacitor/status-bar';
 import NotificationPermissionDeniedModal from "@/components/shared/NotificationPermissionDeniedModal";
 import InstallPrompt from "@/components/shared/InstallPrompt";
@@ -72,6 +73,9 @@ export default function Layout({ children, currentPageName }) {
 
   // Initialize PWA and handle user authentication
   useEffect(() => {
+    // Record install date for in-app review timing
+    recordInstallDate();
+
     // Register service worker after page load
     if (document.readyState === 'complete') {
       registerServiceWorker().catch(err => console.error('SW registration error:', err));

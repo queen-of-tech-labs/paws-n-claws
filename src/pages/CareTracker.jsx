@@ -8,6 +8,7 @@ import PetSelector from "../components/pet/PetSelector";
 import EmptyState from "../components/shared/EmptyState";
 import CareLogForm from "../components/care/CareLogForm";
 import CareLogItem from "../components/care/CareLogItem";
+import { maybeRequestReview } from "@/components/services/reviewService";
 
 const TABS = [
   { value: "all", label: "All" },
@@ -59,6 +60,8 @@ export default function CareTracker() {
     queryClient.invalidateQueries({ queryKey: ["careLogs"] });
     setShowForm(false);
     setEditEntry(null);
+    // After saving, check if user has hit the review milestone
+    maybeRequestReview(careLogs.length + 1);
   };
 
   return (
