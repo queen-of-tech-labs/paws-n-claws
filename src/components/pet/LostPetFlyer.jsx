@@ -3,8 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Share2, Download, X, MapPin, Phone, Mail, AlertTriangle } from "lucide-react";
+import { Share2, Download, AlertTriangle } from "lucide-react";
 
 export default function LostPetFlyer({ open, onClose, pet, user }) {
   const flyerRef = useRef(null);
