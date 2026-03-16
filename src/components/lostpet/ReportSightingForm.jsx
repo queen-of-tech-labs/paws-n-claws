@@ -5,7 +5,7 @@ import { db, fbFunctions } from "@/api/firebaseClient";
 import { httpsCallable } from "firebase/functions";
 import { X, MapPin } from "lucide-react";
 
-export default function ReportSightingForm({ alertId, petName, onClose, onSaved }) {
+export default function ReportSightingForm({ alertId, petName, ownerEmail, onClose, onSaved }) {
   const [form, setForm] = useState({ note: "", location: "" });
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
@@ -66,7 +66,7 @@ export default function ReportSightingForm({ alertId, petName, onClose, onSaved 
       // Notify the pet owner (non-blocking)
       try {
         const notify = httpsCallable(fbFunctions, "notifySighting");
-        await notify({ alertId, petName, location: form.location, note: form.note });
+        await notify({ alertId, petName, location: form.location, note: form.note, ownerEmail });
       } catch (notifErr) {
         console.warn("Sighting notification failed (non-critical):", notifErr);
       }

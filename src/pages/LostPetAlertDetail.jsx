@@ -240,6 +240,7 @@ export default function LostPetAlertDetail() {
         <ReportSightingForm
           alertId={alertId}
           petName={alert.petName}
+          ownerEmail={alert.createdBy}
           onClose={() => setShowSightingForm(false)}
           onSaved={() => {
             setShowSightingForm(false);
