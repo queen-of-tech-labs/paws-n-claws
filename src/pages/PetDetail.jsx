@@ -3,6 +3,7 @@ import api from '@/api/firebaseClient';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "../utils/index";
+import LostPetFlyer from "@/components/pet/LostPetFlyer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,14 +22,10 @@ import AppointmentForm from "../components/appointments/AppointmentForm";
 import AppointmentCard from "../components/appointments/AppointmentCard";
 
 export default function PetDetail() {
-  // With HashRouter, URL is /#/pets/detail?id=123
-  // so params are in the hash portion, not window.location.search
-  const hashSearch = window.location.hash.includes('?')
-    ? window.location.hash.split('?')[1]
-    : window.location.search;
-  const urlParams = new URLSearchParams(hashSearch);
+  const urlParams = new URLSearchParams(window.location.search);
   const petId = urlParams.get("id");
   const [user, setUser] = useState(null);
+  const [showFlyer, setShowFlyer] = useState(false);
   const queryClient = useQueryClient();
 
   const [editPet, setEditPet] = useState(false);
@@ -52,19 +49,19 @@ export default function PetDetail() {
 
   const { data: careLogs = [] } = useQuery({
     queryKey: ["careLogs", petId],
-    queryFn: () => user && petId ? api.entities.CareLog.filterOnly({ pet_id: petId, created_by: user.email }) : [],
+    queryFn: () => user && petId ? api.entities.CareLog.filter({ pet_id: petId, created_by: user.email }, "-date") : [],
     enabled: !!petId && !!user,
   });
 
   const { data: healthRecords = [] } = useQuery({
     queryKey: ["healthRecords", petId],
-    queryFn: () => user && petId ? api.entities.HealthRecord.filterOnly({ pet_id: petId, created_by: user.email }) : [],
+    queryFn: () => user && petId ? api.entities.HealthRecord.filter({ pet_id: petId, created_by: user.email }, "-date") : [],
     enabled: !!petId && !!user,
   });
 
   const { data: appointments = [] } = useQuery({
     queryKey: ["appointments", petId],
-    queryFn: () => user && petId ? api.entities.Appointment.filterOnly({ pet_id: petId, created_by: user.email }) : [],
+    queryFn: () => user && petId ? api.entities.Appointment.filter({ pet_id: petId, created_by: user.email }, "-date") : [],
     enabled: !!petId && !!user,
   });
 
@@ -282,15 +279,11 @@ export default function PetDetail() {
       {showHealthForm && <HealthRecordForm open={true} onClose={() => setShowHealthForm(false)} petId={petId} record={editHealth} onSaved={() => { refreshAll(); setShowHealthForm(false); }} />}
       {showApptForm && <AppointmentForm open={true} onClose={() => setShowApptForm(false)} petId={petId} appointment={editAppt} onSaved={() => { refreshAll(); setShowApptForm(false); }} />}
     </div>
+    <LostPetFlyer
+      open={showFlyer}
+      onClose={() => setShowFlyer(false)}
+      pet={pet}
+      user={user}
+    />
   );
-}
-
-function calculateAge(dateOfBirth) {
-  const birth = new Date(dateOfBirth);
-  const now = new Date();
-  const years = now.getFullYear() - birth.getFullYear();
-  const months = now.getMonth() - birth.getMonth();
-  if (years === 0) return months <= 0 ? "newborn" : `${months} month${months > 1 ? "s" : ""}`;
-  if (years === 1 && months < 0) return `${12 + months} months`;
-  return `${years} year${years > 1 ? "s" : ""} old`;
 }

@@ -12,6 +12,7 @@ import PetForm from "../components/pet/PetForm";
 export default function PetProfiles() {
   const [showForm, setShowForm] = useState(false);
   const [user, setUser] = useState(null);
+  const [flyerPet, setFlyerPet] = useState(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
   const [purchasingSlot, setPurchasingSlot] = useState(false);
