@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from "react";
-import api from '@/api/firebaseClient';
+import api, { db } from '@/api/firebaseClient';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "../utils/index";
 import LostPetFlyer from "@/components/pet/LostPetFlyer";
+import HealthDataManager from "@/components/pet/HealthDataManager";
+import PassportButton from "@/components/pet/PassportButton";
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { useAuth } from "@/lib/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,9 +54,40 @@ export default function PetDetail() {
   const [showApptForm, setShowApptForm] = useState(false);
   const [editAppt, setEditAppt] = useState(null);
 
+  const { user: authUser } = useAuth();
+  const isPremium = authUser?.premium_subscriber === true;
+
+  const [healthData, setHealthData] = useState({
+    vaccinations: [],
+    vetVisits: [],
+    medications: [],
+    conditions: [],
+  });
+
+  async function loadHealthData() {
+    if (!petId) return;
+    const types = ["vaccinations", "vetVisits", "medications", "conditions"];
+    const results = {};
+    for (const type of types) {
+      try {
+        const colRef = collection(db, "pets", petId, type);
+        const q = query(colRef, orderBy("date", "desc"));
+        const snap = await getDocs(q);
+        results[type] = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      } catch {
+        results[type] = [];
+      }
+    }
+    setHealthData(results);
+  }
+
   useEffect(() => {
     api.auth.me().then(setUser).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    loadHealthData();
+  }, [petId]);
 
   const { data: pets = [] } = useQuery({
     queryKey: ["pets"],
@@ -171,6 +206,9 @@ export default function PetDetail() {
           >
             🚨 Report as Lost / Generate Flyer
           </button>
+
+          {/* Health Passport Button */}
+          <PassportButton petId={petId} isPremium={isPremium} />
 
           {/* Badges */}
           <div className="flex flex-wrap gap-2 mb-4">
@@ -296,12 +334,18 @@ export default function PetDetail() {
         </TabsContent>
       </Tabs>
 
+      {/* Health Passport Data Manager */}
+      <HealthDataManager
+        petId={petId}
+        healthData={healthData}
+        onUpdate={loadHealthData}
+      />
+
       {/* Dialogs */}
       {editPet && <PetForm open={true} onClose={() => setEditPet(false)} pet={pet} onSaved={() => { refreshAll(); setEditPet(false); }} />}
       {showCareForm && <CareLogForm open={true} onClose={() => setShowCareForm(false)} petId={petId} entry={editCare} onSaved={() => { refreshAll(); setShowCareForm(false); }} />}
       {showHealthForm && <HealthRecordForm open={true} onClose={() => setShowHealthForm(false)} petId={petId} record={editHealth} onSaved={() => { refreshAll(); setShowHealthForm(false); }} />}
       {showApptForm && <AppointmentForm open={true} onClose={() => setShowApptForm(false)} petId={petId} appointment={editAppt} onSaved={() => { refreshAll(); setShowApptForm(false); }} />}
-    </div>
     <LostPetFlyer
       open={showFlyer}
       onClose={() => setShowFlyer(false)}

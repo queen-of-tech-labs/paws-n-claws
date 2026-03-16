@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { doc, getDoc, collection, getDocs, query, orderBy } from "firebase/firestore";
-import { db, auth } from "../firebase";
+import { db, fbAuth } from "@/api/firebaseClient";
 import { onAuthStateChanged } from "firebase/auth";
 
 export default function PetPassport() {
@@ -23,7 +23,7 @@ export default function PetPassport() {
 
   // Track auth state to know if owner is viewing
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
+    const unsub = onAuthStateChanged(fbAuth, (user) => {
       setCurrentUser(user);
     });
     return unsub;

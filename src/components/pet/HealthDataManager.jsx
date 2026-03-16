@@ -9,7 +9,7 @@ import {
   doc,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "../../firebase";
+import { db } from "@/api/firebaseClient";
 
 // ── Tab definitions ────────────────────────────────────────────────────────
 const TABS = [

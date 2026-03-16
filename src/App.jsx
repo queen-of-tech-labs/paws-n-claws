@@ -37,6 +37,7 @@ import AdminRescueSuggestions from './pages/AdminRescueSuggestions';
 import AdminGuideManagement from './pages/AdminGuideManagement';
 import Layout from './Layout';
 import LoginPage from './pages/Login';
+import PetPassport from './pages/PetPassport';
 
 const PageNotFound = () => (
   <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
@@ -140,6 +141,7 @@ const AppRoutes = () => {
         <Route path="/admin/user" element={<AdminRoute><Layout currentPageName="AdminUserDetail"><AdminUserDetail /></Layout></AdminRoute>} />
         <Route path="/admin/rescue-suggestions" element={<AdminRoute><Layout currentPageName="AdminRescueSuggestions"><AdminRescueSuggestions /></Layout></AdminRoute>} />
         <Route path="/admin/guides" element={<AdminRoute><Layout currentPageName="AdminGuideManagement"><AdminGuideManagement /></Layout></AdminRoute>} />
+        <Route path="/passport/:petId" element={<PetPassport />} />
         <Route path="*" element={<PageNotFound />} />
       </Routes>
       <NotificationPromptManager />
