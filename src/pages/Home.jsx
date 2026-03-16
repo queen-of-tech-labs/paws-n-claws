@@ -5,7 +5,7 @@ import { createPageUrl } from "../utils/index";
 import { Button } from "@/components/ui/button";
 import {
   PawPrint, Heart, FileText, Calendar, MapPin, Zap,
-  CheckCircle2, ArrowRight, Menu, X, Lock
+  CheckCircle2, ArrowRight, Menu, X, Lock, ClipboardList, AlertTriangle, Radio
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,7 +20,10 @@ const features = [
   { icon: FileText, title: "Health Records", description: "Keep all medical documents and vet records in one secure place" },
   { icon: Calendar, title: "Appointments", description: "Schedule and manage vet visits with automatic reminders" },
   { icon: MapPin, title: "Find Vets", description: "Discover local veterinarians and emergency clinics near you" },
-  { icon: Zap, title: "AI Assistant", description: "Get 24/7 pet care advice from an intelligent AI companion" }
+  { icon: Zap, title: "AI Assistant", description: "Get 24/7 pet care advice from an intelligent AI companion" },
+  { icon: AlertTriangle, title: "Lost Pet Flyer", description: "Generate a professional missing pet flyer in seconds directly from your pet's profile" },
+  { icon: ClipboardList, title: "Health Passport", description: "Share a beautiful digital health record with vets, sitters, and groomers instantly" },
+  { icon: Radio, title: "Lost Pet Network", description: "Post live alerts and receive community sightings when your pet goes missing" },
 ];
 
 const scrollTo = (id) => {
@@ -227,7 +230,7 @@ export default function Home() {
             <h3 className="text-2xl font-bold mb-2">Free</h3>
             <p className="text-4xl font-bold mb-6">$0<span className="text-lg text-slate-400">/month</span></p>
             <ul className="space-y-3 mb-8">
-              {["Up to 2 pets", "Basic care tracking", "Health records storage", "Appointment reminders", "Find a Vet", "Community rescues access"].map((item) => (
+              {["Up to 2 pets", "Basic care tracking", "Health records storage", "Appointment reminders", "Find a Vet", "Community rescues access", "Lost Pet Flyer Generator"].map((item) => (
                 <li key={item} className="flex items-center gap-3 text-slate-300"><CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />{item}</li>
               ))}
             </ul>
@@ -241,7 +244,7 @@ export default function Home() {
             <h3 className="text-2xl font-bold mb-2">Premium</h3>
             <p className="text-4xl font-bold mb-6">$6.99<span className="text-lg text-slate-400">/month</span></p>
             <ul className="space-y-3 mb-8">
-              {["Unlimited Pets", "Community Pet Parent Forum", "Detailed Pet Care Guides", "Vet Network", "24/7 AI Pet Assistant", "Symptom Checker", "Digital Pet Health Passport", "Lost Pet Flyer Generator", "Lost Pet Recovery Network"].map((item) => (
+              {["Unlimited Pets", "Community Pet Parent Forum", "Detailed Pet Care Guides", "Vet Network", "24/7 AI Pet Assistant", "Symptom Checker", "Digital Pet Health Passport", "Lost Pet Recovery Network"].map((item) => (
                 <li key={item} className="flex items-center gap-3 text-slate-300"><CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />{item}</li>
               ))}
             </ul>
