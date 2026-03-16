@@ -1,8 +1,9 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { fbAuth, db, auth as authHelpers } from '@/api/firebaseClient';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { initializeOneSignal } from '@/components/services/oneSignalService';
+import { queryClientInstance } from '@/lib/query-client';
 
 const AuthContext = createContext();
 
@@ -14,9 +15,19 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [authError, setAuthError] = useState(null);
+  const previousUidRef = useRef(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(fbAuth, async (firebaseUser) => {
+      const newUid = firebaseUser?.uid || null;
+
+      // If the user changed (including logout), clear all cached query data
+      // so the previous user's pets/data never bleed into the new session
+      if (previousUidRef.current !== newUid) {
+        queryClientInstance.clear();
+        previousUidRef.current = newUid;
+      }
+
       if (firebaseUser) { await loadUser(firebaseUser); }
       else { setUser(null); setIsAuthenticated(false); setIsLoadingAuth(false); }
     });
