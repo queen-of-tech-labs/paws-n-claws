@@ -1,0 +1,388 @@
+/* src/styles/PetPassport.css */
+
+/* ── Fonts ── */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap');
+
+/* ── Variables ── */
+:root {
+  --passport-cream: #fdf8f3;
+  --passport-dark: #1a1410;
+  --passport-teal: #2a7c6f;
+  --passport-teal-light: #d6eeeb;
+  --passport-gold: #c8973a;
+  --passport-gold-light: #fef3dc;
+  --passport-red: #c0392b;
+  --passport-red-light: #fde8e6;
+  --passport-orange: #e67e22;
+  --passport-orange-light: #fef0e0;
+  --passport-green: #27ae60;
+  --passport-green-light: #e6f9ee;
+  --passport-border: #e8ddd0;
+  --passport-text: #3d2f1e;
+  --passport-text-light: #7d6e5d;
+  --passport-shadow: 0 4px 24px rgba(42, 30, 14, 0.10);
+  --passport-shadow-lg: 0 8px 40px rgba(42, 30, 14, 0.16);
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+
+/* ── Page Shell ── */
+.passport-page {
+  background: var(--passport-cream);
+  min-height: 100vh;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--passport-text);
+  padding-bottom: 60px;
+}
+
+/* ── Loading ── */
+.passport-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 16px;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--passport-text-light);
+}
+.paw-spinner {
+  font-size: 48px;
+  animation: paw-bounce 0.8s ease-in-out infinite alternate;
+}
+@keyframes paw-bounce {
+  from { transform: translateY(0) rotate(-10deg); }
+  to   { transform: translateY(-16px) rotate(10deg); }
+}
+
+/* ── Error ── */
+.passport-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 12px;
+  text-align: center;
+  padding: 32px;
+  font-family: 'DM Sans', sans-serif;
+}
+.passport-error .error-icon { font-size: 56px; }
+.passport-error h2 { font-family: 'Playfair Display', serif; font-size: 28px; margin: 0; }
+.passport-error p  { color: var(--passport-text-light); margin: 0; }
+.passport-error button {
+  margin-top: 16px;
+  padding: 12px 28px;
+  background: var(--passport-teal);
+  color: white;
+  border: none;
+  border-radius: 100px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ── Hero / Cover ── */
+.passport-hero {
+  background: linear-gradient(160deg, #1a3a35 0%, #2a7c6f 60%, #3a9e8d 100%);
+  padding: 40px 20px 48px;
+  position: relative;
+  overflow: hidden;
+}
+.passport-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 80% 20%, rgba(255,255,255,0.06) 0%, transparent 60%),
+                    radial-gradient(circle at 10% 80%, rgba(255,255,255,0.04) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.passport-cover {
+  max-width: 680px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.passport-badge {
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 100px;
+  padding: 6px 18px;
+}
+.badge-text {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: rgba(255,255,255,0.85);
+  text-transform: uppercase;
+}
+
+/* Photo */
+.pet-photo-wrapper {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 4px solid rgba(255,255,255,0.35);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  overflow: hidden;
+  background: rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.pet-photo { width: 100%; height: 100%; object-fit: cover; }
+.pet-photo-placeholder { font-size: 56px; line-height: 1; }
+
+/* Identity */
+.pet-identity { text-align: center; }
+.pet-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 38px;
+  font-weight: 900;
+  color: #fff;
+  margin: 0 0 6px;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.pet-subtitle {
+  font-size: 15px;
+  color: rgba(255,255,255,0.72);
+  margin: 0;
+  text-transform: capitalize;
+}
+
+/* Stats Row */
+.pet-stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+.stat-pill {
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 100px;
+  padding: 8px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 72px;
+}
+.stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.6);
+}
+.stat-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  text-transform: capitalize;
+}
+
+/* Action Buttons */
+.passport-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 4px;
+}
+.action-btn {
+  padding: 11px 22px;
+  border-radius: 100px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.15s, opacity 0.15s;
+}
+.action-btn:hover { transform: translateY(-2px); opacity: 0.9; }
+.share-btn  { background: var(--passport-gold);  color: #fff; }
+.print-btn  { background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.3); }
+.edit-btn   { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.85); border: 1px solid rgba(255,255,255,0.2); }
+
+/* ── Content Grid ── */
+.passport-grid {
+  max-width: 720px;
+  margin: 32px auto 0;
+  padding: 0 16px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+/* ── Section Card ── */
+.passport-section {
+  background: #fff;
+  border-radius: var(--radius);
+  border: 1px solid var(--passport-border);
+  padding: 24px;
+  box-shadow: var(--passport-shadow);
+}
+.section-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--passport-dark);
+  margin: 0 0 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--passport-border);
+}
+
+/* ── Empty State ── */
+.empty-state {
+  color: var(--passport-text-light);
+  font-size: 14px;
+  font-style: italic;
+  margin: 0;
+  padding: 8px 0;
+}
+
+/* ── Vaccinations ── */
+.vax-list { display: flex; flex-direction: column; gap: 12px; }
+.vax-card {
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  border-left: 4px solid var(--passport-border);
+  background: var(--passport-cream);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  align-items: start;
+}
+.vax-card.status-up-to-date { border-left-color: var(--passport-green); background: var(--passport-green-light); }
+.vax-card.status-due-soon   { border-left-color: var(--passport-orange); background: var(--passport-orange-light); }
+.vax-card.status-overdue    { border-left-color: var(--passport-red); background: var(--passport-red-light); }
+
+.vax-name  { font-weight: 600; font-size: 15px; grid-column: 1; }
+.vax-badge { font-size: 12px; font-weight: 700; grid-column: 2; grid-row: 1; text-align: right; white-space: nowrap; }
+.badge-up-to-date { color: var(--passport-green); }
+.badge-due-soon   { color: var(--passport-orange); }
+.badge-overdue    { color: var(--passport-red); }
+.vax-dates { font-size: 13px; color: var(--passport-text-light); display: flex; gap: 12px; flex-wrap: wrap; grid-column: 1 / -1; }
+.vax-vet   { font-size: 12px; color: var(--passport-text-light); font-style: italic; grid-column: 1 / -1; }
+
+/* ── Vet Visits ── */
+.visits-list { display: flex; flex-direction: column; gap: 12px; }
+.visit-card {
+  border-radius: var(--radius-sm);
+  background: var(--passport-cream);
+  border: 1px solid var(--passport-border);
+  padding: 14px 16px;
+}
+.visit-date   { font-size: 12px; font-weight: 700; color: var(--passport-teal); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+.visit-reason { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.visit-vet    { font-size: 13px; color: var(--passport-text-light); }
+.visit-clinic { font-size: 13px; color: var(--passport-text-light); font-style: italic; }
+.visit-notes  { font-size: 13px; color: var(--passport-text); margin-top: 6px; line-height: 1.5; }
+.visit-weight { font-size: 12px; color: var(--passport-text-light); margin-top: 6px; }
+
+/* ── Medications ── */
+.meds-list { display: flex; flex-direction: column; gap: 12px; }
+.med-card {
+  border-radius: var(--radius-sm);
+  background: var(--passport-teal-light);
+  border: 1px solid #b8ddd8;
+  padding: 14px 16px;
+}
+.med-name  { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.med-meta  { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--passport-text); margin-bottom: 4px; }
+.med-meta span::before { content: '· '; }
+.med-meta span:first-child::before { content: ''; }
+.med-dates { font-size: 12px; color: var(--passport-text-light); }
+.med-vet   { font-size: 12px; color: var(--passport-text-light); font-style: italic; margin-top: 4px; }
+
+/* ── Conditions ── */
+.conditions-list { display: flex; flex-direction: column; gap: 12px; }
+.condition-card {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--passport-border);
+  padding: 14px 16px;
+  background: var(--passport-cream);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+}
+.condition-card.type-allergy { background: var(--passport-red-light); border-color: #f5b7b1; }
+.condition-name { font-size: 15px; font-weight: 600; grid-column: 1; }
+.condition-type-badge { font-size: 12px; font-weight: 700; grid-column: 2; grid-row: 1; white-space: nowrap; }
+.condition-type-badge.type-allergy   { color: var(--passport-red); }
+.condition-type-badge.type-condition { color: var(--passport-teal); }
+.condition-severity {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  grid-column: 1 / -1;
+}
+.sev-mild     { color: var(--passport-green); }
+.sev-moderate { color: var(--passport-orange); }
+.sev-severe   { color: var(--passport-red); }
+.condition-notes { font-size: 13px; color: var(--passport-text-light); grid-column: 1 / -1; line-height: 1.5; }
+
+/* ── Footer ── */
+.passport-footer {
+  max-width: 720px;
+  margin: 36px auto 0;
+  padding: 0 16px;
+  text-align: center;
+  color: var(--passport-text-light);
+  font-size: 13px;
+}
+.passport-footer a { color: var(--passport-teal); text-decoration: none; font-weight: 600; }
+.footer-cta { margin-top: 8px; font-size: 14px; }
+
+/* ── Print Styles ── */
+.print-header {
+  display: none;
+}
+
+@media print {
+  .no-print { display: none !important; }
+  .passport-page {
+    background: white;
+    padding-bottom: 0;
+  }
+  .passport-hero {
+    background: #2a7c6f !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 16px;
+    font-size: 11px;
+    color: #666;
+    border-bottom: 1px solid #ddd;
+  }
+  .passport-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .passport-grid {
+    margin-top: 16px;
+  }
+}
+
+/* ── Responsive ── */
+@media (min-width: 600px) {
+  .passport-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .section-vaccinations { grid-column: 1 / -1; }
+  .pet-photo-wrapper { width: 140px; height: 140px; }
+  .pet-name { font-size: 46px; }
+}

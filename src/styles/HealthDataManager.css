@@ -1,0 +1,190 @@
+/* src/styles/HealthDataManager.css */
+
+.hdm-wrapper {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #e8ddd0;
+  padding: 24px;
+  margin-top: 24px;
+  box-shadow: 0 4px 24px rgba(42,30,14,0.08);
+}
+
+.hdm-header { margin-bottom: 18px; }
+.hdm-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1410;
+  margin: 0 0 4px;
+}
+.hdm-subtitle { font-size: 13px; color: #7d6e5d; margin: 0; }
+
+/* Tabs */
+.hdm-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.hdm-tab {
+  padding: 8px 16px;
+  border-radius: 100px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1.5px solid #e8ddd0;
+  background: #fdf8f3;
+  color: #7d6e5d;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.hdm-tab.active,
+.hdm-tab:hover {
+  background: #2a7c6f;
+  color: #fff;
+  border-color: #2a7c6f;
+}
+
+/* Records */
+.hdm-records { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.hdm-empty { font-size: 14px; color: #7d6e5d; font-style: italic; margin: 0 0 12px; }
+
+.hdm-record-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #fdf8f3;
+  border-radius: 10px;
+  border: 1px solid #e8ddd0;
+}
+.hdm-record-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.hdm-record-primary {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1410;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hdm-record-secondary {
+  font-size: 12px;
+  color: #7d6e5d;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: capitalize;
+}
+.hdm-btn-delete {
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 1px solid #e8ddd0;
+  background: #fff;
+  color: #c0392b;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.hdm-btn-delete:hover { background: #fde8e6; }
+
+/* Form */
+.hdm-form {
+  background: #fdf8f3;
+  border-radius: 12px;
+  border: 1px solid #e8ddd0;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.hdm-field { display: flex; flex-direction: column; gap: 5px; }
+.hdm-label { font-size: 13px; font-weight: 600; color: #3d2f1e; }
+.required-star { color: #c0392b; }
+.hdm-input,
+.hdm-select,
+.hdm-textarea {
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1.5px solid #e8ddd0;
+  background: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: #3d2f1e;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+.hdm-input:focus,
+.hdm-select:focus,
+.hdm-textarea:focus {
+  border-color: #2a7c6f;
+}
+.hdm-textarea { resize: vertical; min-height: 72px; }
+
+.hdm-error {
+  font-size: 13px;
+  color: #c0392b;
+  background: #fde8e6;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 0;
+}
+
+.hdm-form-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.hdm-btn-save {
+  padding: 10px 24px;
+  background: #2a7c6f;
+  color: #fff;
+  border: none;
+  border-radius: 100px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.hdm-btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+.hdm-btn-cancel {
+  padding: 10px 20px;
+  background: transparent;
+  color: #7d6e5d;
+  border: 1.5px solid #e8ddd0;
+  border-radius: 100px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Add button */
+.hdm-btn-add {
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  border: 2px dashed #c8d8d5;
+  border-radius: 10px;
+  color: #2a7c6f;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.hdm-btn-add:hover {
+  background: #d6eeeb;
+  border-color: #2a7c6f;
+}
