@@ -114,9 +114,10 @@ export async function initializeOneSignal(userId = null) {
           welcomeNotification: { disable: true },
         });
 
-        // Wait up to 3 seconds for a push subscription to become available
+        // Wait up to 5 seconds for a push subscription token to become available
+        // BEFORE calling login — login after an existing subscription causes 409
         let subWaitAttempts = 0;
-        while (!window.OneSignal?.User?.pushSubscription?.id && subWaitAttempts < 30) {
+        while (!window.OneSignal?.User?.pushSubscription?.id && subWaitAttempts < 50) {
           await new Promise(r => setTimeout(r, 100));
           subWaitAttempts++;
         }

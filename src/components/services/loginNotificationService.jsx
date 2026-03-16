@@ -35,29 +35,24 @@ export async function registerDeviceOnLogin(user) {
     console.log('Permission granted:', permissionGranted);
 
     // Step 3: Register device
+    // Step 3: Register device
     if (permissionGranted || isNative()) {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      let deviceToken = await getSubscriptionId();
-
-      // Retry up to 5 times if token is still null — subscription may still be registering
-      if (!deviceToken) {
-        for (let i = 0; i < 5; i++) {
-          await new Promise(r => setTimeout(r, 1000));
-          deviceToken = await getSubscriptionId();
-          if (deviceToken) break;
-        }
+      // Give OneSignal time to get a push subscription after permission is granted
+      let deviceToken = null;
+      for (let i = 0; i < 10; i++) {
+        await new Promise(r => setTimeout(r, 1000));
+        deviceToken = await getSubscriptionId();
+        if (deviceToken) break;
       }
       console.log('Device token:', deviceToken);
 
-      // Login user to OneSignal with their Firebase UID
-      if (user.id) {
-        if (isNative()) {
-          window.plugins?.OneSignal?.login(user.id);
-          console.log('✓ Native device registered with OneSignal');
-        } else if (window.OneSignal) {
-          await window.OneSignal.login(user.id);
-          console.log('✓ Web device registered with OneSignal');
-        }
+      // Login user to OneSignal with their Firebase UID — only on native
+      // Web login is already handled inside initializeOneSignal to avoid 409 conflicts
+      if (user.id && isNative()) {
+        window.plugins?.OneSignal?.login(user.id);
+        console.log('✓ Native device registered with OneSignal');
+      } else if (!isNative()) {
+        console.log('✓ Web device registered with OneSignal');
       }
 
       // Save subscription ID to Firestore if available
