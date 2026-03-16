@@ -21,7 +21,12 @@ import AppointmentForm from "../components/appointments/AppointmentForm";
 import AppointmentCard from "../components/appointments/AppointmentCard";
 
 export default function PetDetail() {
-  const urlParams = new URLSearchParams(window.location.search);
+  // With HashRouter, URL is /#/pets/detail?id=123
+  // so params are in the hash portion, not window.location.search
+  const hashSearch = window.location.hash.includes('?')
+    ? window.location.hash.split('?')[1]
+    : window.location.search;
+  const urlParams = new URLSearchParams(hashSearch);
   const petId = urlParams.get("id");
   const [user, setUser] = useState(null);
   const queryClient = useQueryClient();

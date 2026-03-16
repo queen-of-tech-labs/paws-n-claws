@@ -37,7 +37,11 @@ export default function Account() {
         setLoading(false);
 
         // Check if returning from successful checkout
-        const urlParams = new URLSearchParams(window.location.search);
+        // With HashRouter, query params are in the hash portion
+  const hashSearch = window.location.hash.includes('?')
+    ? window.location.hash.split('?')[1]
+    : window.location.search;
+  const urlParams = new URLSearchParams(hashSearch);
         const sessionId = urlParams.get('session_id');
         
         if (sessionId && authUser?.notification_setup_pending && authUser?.isPremium) {

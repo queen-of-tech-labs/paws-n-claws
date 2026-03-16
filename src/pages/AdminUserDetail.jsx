@@ -43,7 +43,11 @@ export default function AdminUserDetail() {
   const [actionLoading, setActionLoading] = useState(false);
 
   // Get user ID from URL
-  const urlParams = new URLSearchParams(window.location.search);
+  // With HashRouter, query params are in the hash portion
+  const hashSearch = window.location.hash.includes('?')
+    ? window.location.hash.split('?')[1]
+    : window.location.search;
+  const urlParams = new URLSearchParams(hashSearch);
   const userId = urlParams.get("id");
 
   useEffect(() => {
