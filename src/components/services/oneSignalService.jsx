@@ -43,15 +43,6 @@ function hasNotificationPermission() {
 
 export async function initializeOneSignal(userId = null) {
   if (initialized) {
-    if (userId) {
-      try {
-        if (isNative()) {
-          window.plugins?.OneSignal?.login(userId);
-        } else if (window.OneSignal) {
-          await window.OneSignal.login(userId);
-        }
-      } catch {}
-    }
     return;
   }
   if (initPromise) return initPromise;
@@ -114,25 +105,12 @@ export async function initializeOneSignal(userId = null) {
           welcomeNotification: { disable: true },
         });
 
-        // Wait up to 5 seconds for a push subscription token to become available
-        // BEFORE calling login — login after an existing subscription causes 409
+        // Wait up to 5 seconds for push subscription token — NO login() call on web
+        // login() is for native only and causes 409 conflicts on web
         let subWaitAttempts = 0;
         while (!window.OneSignal?.User?.pushSubscription?.id && subWaitAttempts < 50) {
           await new Promise(r => setTimeout(r, 100));
           subWaitAttempts++;
-        }
-
-        if (userId) {
-          try {
-            await window.OneSignal.login(userId);
-          } catch (loginErr) {
-            // 409 means this UID is already linked — safe to ignore, subscription still works
-            if (loginErr?.message?.includes('409') || loginErr?.status === 409) {
-              console.warn('OneSignal login 409 - user already linked, continuing');
-            } else {
-              console.warn('OneSignal login warning:', loginErr?.message);
-            }
-          }
         }
 
         console.log('OneSignal web initialized');
