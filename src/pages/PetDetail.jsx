@@ -22,7 +22,11 @@ import AppointmentForm from "../components/appointments/AppointmentForm";
 import AppointmentCard from "../components/appointments/AppointmentCard";
 
 export default function PetDetail() {
-  const urlParams = new URLSearchParams(window.location.search);
+  // With HashRouter, query params are in the hash portion
+  const hashSearch = window.location.hash.includes('?')
+    ? window.location.hash.split('?')[1]
+    : window.location.search;
+  const urlParams = new URLSearchParams(hashSearch);
   const petId = urlParams.get("id");
   const [user, setUser] = useState(null);
   const [showFlyer, setShowFlyer] = useState(false);
