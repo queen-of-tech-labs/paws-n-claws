@@ -22,7 +22,7 @@ export async function handlePostPurchaseSetup() {
       const subscriptionId = await getSubscriptionId();
       if (subscriptionId) {
         if (window.OneSignal && user.id) {
-          await window.OneSignal.login(user.id);
+          // Note: login() removed — causes 409 on web SDK v16
         }
         await window.OneSignal?.User?.addTag('premium', 'true');
         console.log('✓ Premium tag set');

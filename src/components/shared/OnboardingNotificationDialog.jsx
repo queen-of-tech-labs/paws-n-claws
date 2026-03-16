@@ -89,9 +89,7 @@ export default function OnboardingNotificationDialog({ open, onOpenChange, userI
           setLoading(false);
           return;
         }
-        if (window.OneSignal) {
-          await window.OneSignal.login(userId).catch(() => {});
-        }
+        // Note: web login() removed — causes 409 conflicts on web SDK v16
       }
 
       // Mark as set up in localStorage so we never ask again

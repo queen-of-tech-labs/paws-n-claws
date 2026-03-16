@@ -92,9 +92,8 @@ export const AuthProvider = ({ children }) => {
         const isNative = !!(window.Capacitor?.isNativePlatform?.());
         if (isNative) {
           window.plugins?.OneSignal?.login(fullUser.id);
-        } else if (window.OneSignal) {
-          window.OneSignal.login(fullUser.id).catch(() => {});
         }
+        // Note: web login() removed — causes 409 conflicts on web SDK v16
       }
     } catch (e) {
       console.warn('OneSignal init failed:', e);

@@ -86,9 +86,7 @@ export async function registerDevice(userId) {
     if (userId) {
       if (isNative()) {
         window.plugins?.OneSignal?.login(userId);
-      } else if (window.OneSignal) {
-        window.OneSignal.login(userId);
-      }
+        // Note: web login() removed — causes 409 conflicts on web SDK v16
     }
     return true;
   } catch (error) {
