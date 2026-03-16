@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from "react";
-import api, { db } from '@/api/firebaseClient';
+import api from '@/api/firebaseClient';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "../utils/index";
 import LostPetFlyer from "@/components/pet/LostPetFlyer";
-import HealthDataManager from "@/components/pet/HealthDataManager";
 import PassportButton from "@/components/pet/PassportButton";
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { useAuth } from "@/lib/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -60,27 +58,6 @@ export default function PetDetail() {
 
   const { user: authUser } = useAuth();
   const isPremium = authUser?.premium_subscriber === true;
-
-  const [healthData, setHealthData] = useState({
-    vaccinations: [], vetVisits: [], medications: [], conditions: [],
-  });
-
-  async function loadHealthData() {
-    if (!petId) return;
-    const types = ["vaccinations", "vetVisits", "medications", "conditions"];
-    const results = {};
-    for (const type of types) {
-      try {
-        const colRef = collection(db, "pets", petId, type);
-        const q = query(colRef, orderBy("date", "desc"));
-        const snap = await getDocs(q);
-        results[type] = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      } catch { results[type] = []; }
-    }
-    setHealthData(results);
-  }
-
-  useEffect(() => { loadHealthData(); }, [petId]);
 
   const { data: pets = [] } = useQuery({
     queryKey: ["pets"],
@@ -192,28 +169,15 @@ export default function PetDetail() {
             </div>
           </div>
 
-          {/* Lost Pet Button */}
-          <button
-            onClick={() => setShowFlyer(true)}
-            className="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors text-sm font-medium mb-3"
-          >
-            🚨 Report as Lost / Generate Flyer
-          </button>
-
-          {/* Health Passport Button */}
-          <div className="mb-3">
-            <PassportButton petId={petId} isPremium={isPremium} />
-          </div>
-
           {/* Badges */}
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex flex-wrap gap-2 mb-3">
             {pet.weight && <Badge variant="secondary" className="bg-orange-50 text-[#6B5B50] border-0">{pet.weight} lbs</Badge>}
             {pet.spayed_neutered && <Badge variant="secondary" className="bg-green-50 text-green-700 border-0">Spayed/Neutered</Badge>}
             {pet.microchip_number && <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-0">Microchipped</Badge>}
           </div>
 
           {/* Quick info - single column */}
-          <div className="space-y-2 text-sm">
+          <div className="space-y-2 text-sm mb-4">
             {pet.microchip_number && (
               <div>
                 <span className="text-[#6B5B50]/50">Microchip:</span>
@@ -233,6 +197,17 @@ export default function PetDetail() {
               </div>
             )}
           </div>
+
+          {/* Lost Pet Button */}
+          <button
+            onClick={() => setShowFlyer(true)}
+            className="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors text-sm font-medium mb-3"
+          >
+            🚨 Report as Lost / Generate Flyer
+          </button>
+
+          {/* Health Passport Button */}
+          <PassportButton petId={petId} isPremium={isPremium} />
 
           {/* Medical history and behavior notes */}
           {(pet.medical_history || pet.behavior_notes) && (
@@ -328,13 +303,6 @@ export default function PetDetail() {
           )}
         </TabsContent>
       </Tabs>
-
-      {/* Health Passport Data Manager */}
-      <HealthDataManager
-        petId={petId}
-        healthData={healthData}
-        onUpdate={loadHealthData}
-      />
 
       {/* Dialogs */}
       {editPet && <PetForm open={true} onClose={() => setEditPet(false)} pet={pet} onSaved={() => { refreshAll(); setEditPet(false); }} />}

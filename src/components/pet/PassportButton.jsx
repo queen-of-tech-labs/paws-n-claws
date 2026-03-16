@@ -1,8 +1,4 @@
 // src/components/pet/PassportButton.jsx
-// Drop this button anywhere on the Pet Detail page.
-// - If the user is premium → opens their passport in a new tab + copy link
-// - If NOT premium → shows upgrade prompt
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -11,7 +7,6 @@ export default function PassportButton({ petId, isPremium }) {
   const [copied, setCopied] = useState(false);
 
   function handleView() {
-    // Navigate to the passport page (opens in same tab)
     navigate(`/passport/${petId}`);
   }
 
@@ -25,30 +20,37 @@ export default function PassportButton({ petId, isPremium }) {
 
   if (!isPremium) {
     return (
-      <div className="passport-upsell">
-        <div className="upsell-icon">🐾</div>
-        <div className="upsell-text">
-          <strong>Digital Health Passport</strong>
-          <p>Share {/* pet name handled by parent */}your pet's full medical history with vets, sitters &amp; groomers.</p>
+      <div className="flex items-center gap-3 w-full px-4 py-3 rounded-xl bg-[#F97066]/10 border border-[#F97066]/30 mb-3">
+        <span className="text-lg">🐾</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-[#3D2E24]">Digital Health Passport</p>
+          <p className="text-xs text-[#6B5B50]/70">Share your pet's medical history with vets &amp; sitters</p>
         </div>
         <button
-          className="upsell-btn"
           onClick={() => navigate("/premium")}
+          className="text-xs font-semibold text-[#F97066] whitespace-nowrap"
         >
-          Unlock with Premium →
+          Unlock →
         </button>
       </div>
     );
   }
 
   return (
-    <div className="passport-btn-group">
-      <button className="passport-view-btn" onClick={handleView}>
+    <div className="mb-3">
+      <button
+        onClick={handleView}
+        className="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-xl bg-[#2a7c6f]/10 border border-[#2a7c6f]/30 text-[#2a7c6f] hover:bg-[#2a7c6f]/20 transition-colors text-sm font-medium mb-1"
+      >
         📋 View Health Passport
       </button>
-      <button className="passport-share-btn" onClick={handleCopy}>
-        {copied ? "✓ Copied!" : "🔗 Copy Link"}
+      <button
+        onClick={handleCopy}
+        className="flex items-center justify-center gap-1 w-full text-xs text-[#6B5B50]/60 hover:text-[#2a7c6f] transition-colors py-1"
+      >
+        🔗 {copied ? "✓ Link copied to clipboard!" : "Copy shareable link"}
       </button>
     </div>
   );
 }
+
