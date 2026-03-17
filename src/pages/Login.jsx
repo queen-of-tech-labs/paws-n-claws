@@ -14,12 +14,26 @@ export default function LoginPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Handle magic link callback only
-    if (isSignInWithEmailLink(fbAuth, window.location.href)) {
+    // Handle magic link callback — works in both browser and Android deep link
+    // On Android, Capacitor loads the app and the magic link URL is in window.location
+    // We check both the full href and the hash portion for the oobCode parameter
+    const fullUrl = window.location.href;
+    const hashUrl = window.location.hash
+      ? new URL('https://paws-n-claws.vercel.app/' + window.location.hash.replace('#/', ''))
+      : null;
+
+    const urlToCheck = isSignInWithEmailLink(fbAuth, fullUrl)
+      ? fullUrl
+      : hashUrl && isSignInWithEmailLink(fbAuth, hashUrl.href)
+      ? hashUrl.href
+      : null;
+
+    if (urlToCheck) {
       let emailForSignIn = window.localStorage.getItem('emailForSignIn');
-      if (!emailForSignIn) emailForSignIn = window.prompt('Please provide your email');
+      if (!emailForSignIn) emailForSignIn = window.prompt('Please provide your email for confirmation');
+      if (!emailForSignIn) return;
       setLoading(true);
-      signInWithEmailLink(fbAuth, emailForSignIn, window.location.href)
+      signInWithEmailLink(fbAuth, emailForSignIn, urlToCheck)
         .then(() => {
           window.localStorage.removeItem('emailForSignIn');
           // App.jsx will detect isAuthenticated=true and redirect away from /login automatically

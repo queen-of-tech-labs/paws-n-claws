@@ -3,6 +3,8 @@
   "appName": "Paws & Claws",
   "webDir": "dist",
   "server": {
+    "androidScheme": "https",
+    "hostname": "paws-n-claws.vercel.app",
     "androidScheme": "https"
   },
   "plugins": {

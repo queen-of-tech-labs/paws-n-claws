@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "paws.claws.pet.tracker",
+      "sha256_cert_fingerprints": ["FB:69:50:11:26:26:16:C9:C6:12:75:A9:54:4F:77:B8:41:04:C2:99:A8:87:DA:63:FE:FB:25:BD:0D:1E:07:74"]
+    }
+  }
+]
