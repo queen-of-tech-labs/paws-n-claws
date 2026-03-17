@@ -2,6 +2,8 @@ import { initializeApp } from 'firebase/app';
 import {
   getAuth,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signInWithCredential,
   signInWithEmailLink,
   sendSignInLinkToEmail,
@@ -77,7 +79,7 @@ export const auth = {
     };
   },
 
-  /** Sign in with Google — native plugin on Android, popup on web */
+  /** Sign in with Google — native plugin on Android, redirect on web */
   async redirectToLogin(redirectTo) {
     const isNative = !!(window.Capacitor?.isNativePlatform?.());
     if (isNative) {
@@ -89,12 +91,20 @@ export const auth = {
       const credential = GoogleAuthProvider.credential(idToken);
       await signInWithCredential(fbAuth, credential);
     } else {
-      try {
-        await signInWithPopup(fbAuth, googleProvider);
-      } catch (error) {
-        console.error('Google sign-in error:', error);
-        throw error;
-      }
+      // Use redirect (not popup) on web — popup requires Firebase Hosting which we don't use.
+      // After Google auth, the page reloads and AuthContext picks up the signed-in user.
+      await signInWithRedirect(fbAuth, googleProvider);
+    }
+  },
+
+  /** Call this once on app load to pick up the result of a Google redirect sign-in */
+  async handleGoogleRedirectResult() {
+    try {
+      const result = await getRedirectResult(fbAuth);
+      return result; // null if no redirect happened, or UserCredential if it did
+    } catch (error) {
+      console.error('Google redirect result error:', error);
+      throw error;
     }
   },
 

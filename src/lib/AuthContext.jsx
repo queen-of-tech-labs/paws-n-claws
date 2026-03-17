@@ -19,6 +19,11 @@ export const AuthProvider = ({ children }) => {
   const previousUidRef = useRef(null);
 
   useEffect(() => {
+    // Handle Google redirect result on page load (fires after Google redirects back)
+    authHelpers.handleGoogleRedirectResult().catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(fbAuth, async (firebaseUser) => {
       const newUid = firebaseUser?.uid || null;
 
