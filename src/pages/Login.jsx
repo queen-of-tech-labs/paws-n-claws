@@ -4,7 +4,6 @@ import { PawPrint, Mail, Lock, Loader2, CheckCircle2, Eye, EyeOff } from 'lucide
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-// Which screen to show
 const SCREEN = {
   LOGIN: 'login',
   SIGNUP: 'signup',
@@ -12,6 +11,29 @@ const SCREEN = {
   FORGOT_SENT: 'forgot_sent',
   VERIFY_EMAIL: 'verify_email',
 };
+
+// Wrapper is defined OUTSIDE LoginPage so React never recreates it on re-render,
+// which would cause inputs to lose focus after every keystroke.
+function Wrapper({ children }) {
+  return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6 py-12">
+      <div className="w-full max-w-md">
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center mb-4">
+            <PawPrint className="w-7 h-7 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-white">Paws & Claws</h1>
+        </div>
+        <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8">
+          {children}
+        </div>
+        <p className="text-center text-xs text-slate-500 mt-6">
+          By signing in, you agree to our Terms of Service and Privacy Policy.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export default function LoginPage() {
   const [screen, setScreen] = useState(SCREEN.LOGIN);
@@ -32,7 +54,6 @@ export default function LoginPage() {
 
   const goTo = (s) => { resetForm(); setScreen(s); };
 
-  // Friendly error messages instead of raw Firebase codes
   const friendlyError = (err) => {
     const code = err.code || '';
     if (code === 'auth/email-already-in-use') return 'An account with this email already exists. Try signing in instead.';
@@ -51,7 +72,6 @@ export default function LoginPage() {
     setError('');
     try {
       await authHelpers.signInWithPassword(email, password);
-      // AuthContext picks up the signed-in user → App.jsx redirects to /dashboard
     } catch (err) {
       setError(friendlyError(err));
       setLoading(false);
@@ -60,19 +80,12 @@ export default function LoginPage() {
 
   const handleSignUp = async (e) => {
     e.preventDefault();
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
+    if (password !== confirmPassword) { setError('Passwords do not match.'); return; }
+    if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
     setLoading(true);
     setError('');
     try {
       await authHelpers.signUp(email, password);
-      // Show verify email screen — user is signed in but email unverified
       setScreen(SCREEN.VERIFY_EMAIL);
     } catch (err) {
       setError(friendlyError(err));
@@ -104,27 +117,6 @@ export default function LoginPage() {
     }
   };
 
-  // ── Shared wrapper ────────────────────────────────────────────────────────
-  const Wrapper = ({ children }) => (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6 py-12">
-      <div className="w-full max-w-md">
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center mb-4">
-            <PawPrint className="w-7 h-7 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-white">Paws & Claws</h1>
-        </div>
-        <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8">
-          {children}
-        </div>
-        <p className="text-center text-xs text-slate-500 mt-6">
-          By signing in, you agree to our Terms of Service and Privacy Policy.
-        </p>
-      </div>
-    </div>
-  );
-
-  // ── Loading spinner ───────────────────────────────────────────────────────
   if (loading) {
     return (
       <Wrapper>
@@ -136,7 +128,6 @@ export default function LoginPage() {
     );
   }
 
-  // ── Email verified / welcome ──────────────────────────────────────────────
   if (screen === SCREEN.VERIFY_EMAIL) {
     return (
       <Wrapper>
@@ -145,17 +136,15 @@ export default function LoginPage() {
             <CheckCircle2 className="w-6 h-6 text-green-400" />
           </div>
           <h2 className="text-lg font-semibold text-white mb-2">Account created!</h2>
-          <p className="text-slate-400 text-sm mb-6">
-            Welcome to Paws & Claws! We sent a verification email to <strong className="text-white">{email}</strong>. You can verify it at any time — for now you're all set.
+          <p className="text-slate-400 text-sm mb-4">
+            Welcome to Paws & Claws! We sent a verification email to <strong className="text-white">{email}</strong>. You can verify it any time — you're all set for now.
           </p>
-          {/* AuthContext will auto-redirect to dashboard since user is signed in */}
           <p className="text-slate-500 text-xs">Taking you to your dashboard…</p>
         </div>
       </Wrapper>
     );
   }
 
-  // ── Forgot password sent ──────────────────────────────────────────────────
   if (screen === SCREEN.FORGOT_SENT) {
     return (
       <Wrapper>
@@ -165,7 +154,7 @@ export default function LoginPage() {
           </div>
           <h2 className="text-lg font-semibold text-white mb-2">Check your email</h2>
           <p className="text-slate-400 text-sm mb-6">
-            We sent a password reset link to <strong className="text-white">{email}</strong>. Click the link in the email to set a new password.
+            We sent a password reset link to <strong className="text-white">{email}</strong>.
           </p>
           <button onClick={() => goTo(SCREEN.LOGIN)} className="text-sm text-blue-400 hover:text-blue-300">
             Back to sign in
@@ -175,7 +164,6 @@ export default function LoginPage() {
     );
   }
 
-  // ── Forgot password form ──────────────────────────────────────────────────
   if (screen === SCREEN.FORGOT) {
     return (
       <Wrapper>
@@ -200,7 +188,6 @@ export default function LoginPage() {
     );
   }
 
-  // ── Sign up form ──────────────────────────────────────────────────────────
   if (screen === SCREEN.SIGNUP) {
     return (
       <Wrapper>
@@ -247,20 +234,16 @@ export default function LoginPage() {
         </form>
         <p className="text-center text-sm text-slate-500 mt-6">
           Already have an account?{' '}
-          <button onClick={() => goTo(SCREEN.LOGIN)} className="text-blue-400 hover:text-blue-300">
-            Sign in
-          </button>
+          <button onClick={() => goTo(SCREEN.LOGIN)} className="text-blue-400 hover:text-blue-300">Sign in</button>
         </p>
       </Wrapper>
     );
   }
 
-  // ── Login form (default) ──────────────────────────────────────────────────
+  // Default: Login
   return (
     <Wrapper>
       <p className="text-slate-400 text-sm text-center mb-6">Sign in to your account</p>
-
-      {/* Google */}
       <button onClick={handleGoogle}
         className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white hover:bg-slate-100 text-slate-900 rounded-xl font-medium transition mb-6">
         <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -271,14 +254,11 @@ export default function LoginPage() {
         </svg>
         Continue with Google
       </button>
-
       <div className="flex items-center gap-3 mb-6">
         <div className="flex-1 h-px bg-slate-800" />
         <span className="text-xs text-slate-500">or sign in with email</span>
         <div className="flex-1 h-px bg-slate-800" />
       </div>
-
-      {/* Email + Password */}
       <form onSubmit={handleLogin} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">Email address</label>
@@ -290,9 +270,7 @@ export default function LoginPage() {
           <div className="flex justify-between items-center mb-2">
             <label className="text-sm font-medium text-slate-300">Password</label>
             <button type="button" onClick={() => goTo(SCREEN.FORGOT)}
-              className="text-xs text-blue-400 hover:text-blue-300">
-              Forgot password?
-            </button>
+              className="text-xs text-blue-400 hover:text-blue-300">Forgot password?</button>
           </div>
           <div className="relative">
             <Input
@@ -314,12 +292,9 @@ export default function LoginPage() {
           <Lock className="w-4 h-4 mr-2" /> Sign In
         </Button>
       </form>
-
       <p className="text-center text-sm text-slate-500 mt-6">
         Don't have an account?{' '}
-        <button onClick={() => goTo(SCREEN.SIGNUP)} className="text-blue-400 hover:text-blue-300">
-          Sign up
-        </button>
+        <button onClick={() => goTo(SCREEN.SIGNUP)} className="text-blue-400 hover:text-blue-300">Sign up</button>
       </p>
     </Wrapper>
   );
