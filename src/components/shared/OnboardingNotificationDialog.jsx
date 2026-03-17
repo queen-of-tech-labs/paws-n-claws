@@ -171,7 +171,7 @@ export default function OnboardingNotificationDialog({ open, onOpenChange, userI
 
         <div className="flex gap-3">
           <Button onClick={handleSkip} variant="outline"
-            className="flex-1 border-slate-600 text-white hover:bg-slate-800 hover:text-white" disabled={loading}>
+            className="flex-1 border-slate-600 bg-white text-slate-900 hover:bg-slate-100 font-medium" disabled={loading}>
             Skip for Now
           </Button>
           <Button onClick={handleEnableNotifications} disabled={loading || success}
