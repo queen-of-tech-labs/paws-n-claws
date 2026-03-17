@@ -43,7 +43,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 // ─────────────────────────────────────────────
 const firebaseConfig = {
   apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain:        'paws-n-claws.vercel.app',
+  authDomain:        'paws-claws-pet-tracker-3t0ana.firebaseapp.com',
   projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
