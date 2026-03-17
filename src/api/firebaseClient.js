@@ -96,10 +96,10 @@ export const auth = {
 
   /** Send magic link email */
   async sendMagicLink(email, redirectTo) {
-    // Firebase requires a whitelisted https URL as the redirect.
-    // We embed the email in the continueUrl so the app can read it
-    // without needing localStorage (which is lost when the link opens the app).
-    const continueUrl = 'https://paws-n-claws.vercel.app/#/login?email=' + encodeURIComponent(email);
+    // The magic link redirects to /auth-callback on Vercel.
+    // That page completes Firebase sign-in in the browser, then opens
+    // the app via pawsclaws:// custom URI scheme — no prompt needed.
+    const continueUrl = 'https://paws-n-claws.vercel.app/auth-callback?email=' + encodeURIComponent(email);
     const actionCodeSettings = {
       url: continueUrl,
       handleCodeInApp: true,
@@ -110,7 +110,6 @@ export const auth = {
       },
     };
     await sendSignInLinkToEmail(fbAuth, email, actionCodeSettings);
-    // Save in both storages as backup — may survive deep link on some devices
     window.localStorage.setItem('emailForSignIn', email);
     window.sessionStorage.setItem('emailForSignIn', email);
   },

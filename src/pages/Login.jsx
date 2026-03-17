@@ -1,33 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { fbAuth, auth as authHelpers } from '@/api/firebaseClient';
 import { isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { PawPrint, Mail, Loader2, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-
-// Extract email from a URL string's query params
-function extractEmailFromUrl(urlString) {
-  try {
-    const url = new URL(urlString);
-    return url.searchParams.get('email');
-  } catch (_) {
-    return null;
-  }
-}
-
-// Extract email from hash portion e.g. /#/login?email=foo@bar.com
-function extractEmailFromHash(hash) {
-  try {
-    const hashContent = hash.replace(/^#\/?/, '');
-    const queryStart = hashContent.indexOf('?');
-    if (queryStart === -1) return null;
-    const params = new URLSearchParams(hashContent.substring(queryStart + 1));
-    return params.get('email');
-  } catch (_) {
-    return null;
-  }
-}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -36,17 +12,32 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [needsEmail, setNeedsEmail] = useState(false);
   const [pendingUrl, setPendingUrl] = useState(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
+    // This handles the rare case where the magic link opens the web app
+    // directly instead of going through /auth-callback first.
+    // Extract email from URL params (embedded by sendMagicLink).
+    function getEmailFromUrl(urlStr) {
+      try {
+        const u = new URL(urlStr);
+        const e = u.searchParams.get('email');
+        if (e) return e;
+        // Also check hash query string
+        const hash = u.hash;
+        if (hash && hash.includes('?')) {
+          const p = new URLSearchParams(hash.split('?')[1]);
+          return p.get('email');
+        }
+      } catch (_) {}
+      return null;
+    }
+
     const fullUrl = window.location.href;
     let urlToCheck = null;
 
-    // Check if the current URL is a Firebase magic link
     if (isSignInWithEmailLink(fbAuth, fullUrl)) {
       urlToCheck = fullUrl;
     } else if (window.location.hash) {
-      // HashRouter puts the real path in the hash — reconstruct and check
       try {
         const hashPath = window.location.hash.replace('#/', '');
         const reconstructed = 'https://paws-n-claws.vercel.app/' + hashPath;
@@ -56,26 +47,18 @@ export default function LoginPage() {
       } catch (_) {}
     }
 
-    if (!urlToCheck) return; // Not a magic link — show normal login form
-
-    // Try every possible source for the email, in order of reliability:
-    // 1. Embedded in the URL itself (most reliable — survives app restarts)
-    // 2. localStorage (set when the link was sent on this device)
-    // 3. sessionStorage (backup)
-    const emailFromUrl =
-      extractEmailFromUrl(urlToCheck) ||
-      extractEmailFromUrl(fullUrl) ||
-      extractEmailFromHash(window.location.hash);
+    if (!urlToCheck) return;
 
     const savedEmail =
-      emailFromUrl ||
+      getEmailFromUrl(urlToCheck) ||
+      getEmailFromUrl(fullUrl) ||
       window.localStorage.getItem('emailForSignIn') ||
-      window.sessionStorage.getItem('emailForSignIn');
+      window.sessionStorage.getItem('emailForSignIn') ||
+      window.localStorage.getItem('pendingAuthEmail');
 
     if (savedEmail) {
       completeSignIn(savedEmail, urlToCheck);
     } else {
-      // Last resort — show a clean input form (no ugly browser prompt)
       setNeedsEmail(true);
       setPendingUrl(urlToCheck);
     }
@@ -88,7 +71,8 @@ export default function LoginPage() {
       .then(() => {
         window.localStorage.removeItem('emailForSignIn');
         window.sessionStorage.removeItem('emailForSignIn');
-        // AuthContext picks up the signed-in user → App.jsx redirects to /dashboard
+        window.localStorage.removeItem('pendingAuthEmail');
+        // AuthContext detects sign-in → App.jsx redirects to /dashboard
       })
       .catch((err) => {
         setError('Sign-in failed: ' + err.message);
@@ -131,7 +115,6 @@ export default function LoginPage() {
     setLoading(false);
   };
 
-  // ── Signing in automatically ───────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
@@ -146,7 +129,6 @@ export default function LoginPage() {
     );
   }
 
-  // ── Opened on a different device — need email confirmation ────────────────
   if (needsEmail) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
@@ -160,24 +142,20 @@ export default function LoginPage() {
           </div>
           <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8">
             <p className="text-slate-400 text-sm mb-4">
-              It looks like you opened this link on a different device. Please enter your email to finish signing in.
+              Please enter the email you used to request the sign-in link.
             </p>
             <form onSubmit={handleConfirmEmail} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Email address</label>
-                <Input
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
-                  required
-                />
-              </div>
+              <Input
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
+                required
+              />
               {error && <p className="text-sm text-red-400">{error}</p>}
               <Button type="submit" disabled={!email} className="w-full bg-blue-600 hover:bg-blue-700">
-                <Mail className="w-4 h-4 mr-2" />
-                Complete Sign In
+                <Mail className="w-4 h-4 mr-2" /> Complete Sign In
               </Button>
             </form>
           </div>
@@ -186,7 +164,6 @@ export default function LoginPage() {
     );
   }
 
-  // ── Normal login form ─────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
       <div className="w-full max-w-md">
@@ -205,7 +182,7 @@ export default function LoginPage() {
               </div>
               <h2 className="text-lg font-semibold text-white mb-2">Check your email</h2>
               <p className="text-slate-400 text-sm">
-                We sent a magic link to <strong className="text-white">{email}</strong>. Tap it to sign in instantly — no password needed.
+                We sent a magic link to <strong className="text-white">{email}</strong>. Tap it to sign in — the app will open automatically.
               </p>
               <button onClick={() => setSent(false)} className="mt-4 text-sm text-blue-400 hover:text-blue-300">
                 Use a different email

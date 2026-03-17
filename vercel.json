@@ -9,23 +9,12 @@
     }
   ],
   "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
-    {
-      "source": "/.well-known/(.*)",
-      "destination": "/.well-known/$1"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/auth-callback", "destination": "/api/auth-callback" },
+    { "source": "/.well-known/(.*)", "destination": "/.well-known/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
   "crons": [
-    {
-      "path": "/api/scheduler",
-      "schedule": "*/5 * * * *"
-    }
+    { "path": "/api/scheduler", "schedule": "*/5 * * * *" }
   ]
 }

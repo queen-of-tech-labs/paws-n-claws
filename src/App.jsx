@@ -162,11 +162,37 @@ function App() {
       if (canGoBack) {
         window.history.back();
       } else {
-        // If at root, minimize app instead of exiting
         CapApp.minimizeApp();
       }
     });
     return () => { handler.then(h => h.remove()); };
+  }, []);
+
+  useEffect(() => {
+    // Handle deep links — fires when the app is opened via pawsclaws:// URI scheme.
+    // The /auth-callback page on Vercel completes Firebase sign-in in the browser,
+    // then redirects here via pawsclaws://login?email=xxx so the app knows the user
+    // is already authenticated and can navigate to the dashboard.
+    const urlHandler = CapApp.addListener('appUrlOpen', async (data) => {
+      console.log('appUrlOpen received:', data.url);
+      try {
+        const url = new URL(data.url);
+        // The auth-callback page already signed the user in via Firebase.
+        // Firebase Auth state persists on device, so onAuthStateChanged in
+        // AuthContext will fire and set isAuthenticated=true automatically.
+        // We just need to make sure we're on the right page.
+        const email = url.searchParams.get('email');
+        if (email) {
+          // Store email as a hint in case Login.jsx needs it
+          window.localStorage.setItem('pendingAuthEmail', email);
+        }
+        // Navigate to dashboard — AuthContext will redirect to login if not authed
+        window.location.hash = '#/dashboard';
+      } catch (e) {
+        console.warn('appUrlOpen parse error:', e);
+      }
+    });
+    return () => { urlHandler.then(h => h.remove()); };
   }, []);
 
   return (
