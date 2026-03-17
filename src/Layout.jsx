@@ -205,8 +205,8 @@ export default function Layout({ children, currentPageName }) {
       `}>
         <div className="p-6 border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-              <PawPrint className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center">
+              <img src="/favicon.png" alt="Paws & Claws" className="w-10 h-10 object-contain" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-white">Paws & Claws</h1>
@@ -366,7 +366,7 @@ export default function Layout({ children, currentPageName }) {
               <Menu className="w-5 h-5" />
             </Button>
             <div className="flex items-center gap-2">
-              <PawPrint className="w-5 h-5 text-blue-400" />
+              <img src="/favicon.png" alt="Paws & Claws" className="w-6 h-6 object-contain" />
               <span className="font-bold text-white">Paws & Claws</span>
             </div>
             <div className="w-10" />
