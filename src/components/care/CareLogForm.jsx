@@ -45,7 +45,6 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
       title: "",
       description: "",
       date: new Date().toISOString().split("T")[0],
-      next_due_date: "",
       status: "completed",
       medication_dosage: "",
       medication_frequency: "",
@@ -56,8 +55,11 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
       reminder_interval_days: 0,
     };
   });
+
   const [saving, setSaving] = useState(false);
-  const isMedicationType = form.type === 'medication';
+  const isMedication = form.type === 'medication';
+
+  // Non-medication reminder state
   const [createReminder, setCreateReminder] = useState(false);
   const [reminderDueDate, setReminderDueDate] = useState(new Date().toISOString().split("T")[0]);
   const [reminderTime, setReminderTime] = useState("09:00");
@@ -82,10 +84,6 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
 
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
-    // Auto-enable reminder creation for medication entries
-    if (field === 'type' && value === 'medication') {
-      setCreateReminder(true);
-    }
   };
 
   const handleSubmit = async (e) => {
@@ -93,8 +91,8 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
     setSaving(true);
     try {
       const data = { ...form };
-      delete data.next_due_date;
 
+      // Clean up fields not relevant to this type
       if (form.type !== "weight") {
         delete data.weight_value;
       } else if (data.weight_value) {
@@ -125,45 +123,51 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
         savedId = created.id;
       }
 
-      if ((createReminder || data.type === 'medication') && savedId) {
-        // Get user's timezone offset in minutes (e.g. EST = -300)
+      // ── Medication reminder ────────────────────────────────────────────────
+      // For medication: reminder times ARE the medication times.
+      // No separate date/time picker needed — scheduler fires daily at those times.
+      if (isMedication && savedId && data.medication_times?.length > 0) {
         const tzOffset = new Date().getTimezoneOffset();
-
-        // For medication entries, use medication_times from the care log
-        // For other types, use the reminder time picker
-        const isMedication = data.type === 'medication';
-        const medTimes = isMedication && data.medication_times?.length > 0
-          ? data.medication_times  // local times e.g. ["05:45", "16:55"]
-          : reminderTime ? [reminderTime] : [];
-
-        // Calculate "remind before" time for medication
-        const minutesBefore = isMedication ? (parseInt(data.reminder_interval_days) || 0) : 0;
-
-        // Adjust medication times by "remind before" minutes
-        const adjustedMedTimes = medTimes.map(t => {
-          if (!t || minutesBefore === 0) return t;
-          const [h, m] = t.split(':').map(Number);
-          const totalMins = h * 60 + m - minutesBefore;
-          const adjH = Math.floor(((totalMins % 1440) + 1440) % 1440 / 60);
-          const adjM = ((totalMins % 1440) + 1440) % 1440 % 60;
-          return `${String(adjH).padStart(2,'0')}:${String(adjM).padStart(2,'0')}`;
-        });
-
         const reminderData = {
           pet_id: data.pet_id,
-          type: isMedication ? 'medication' : (typeMapping[data.type] || 'other'),
-          title: isMedication ? data.title : `${data.title} - Reminder`,
+          type: 'medication',
+          title: data.title,
           description: `Reminder for: ${data.title}`,
-          due_date: reminderDueDate,
-          due_time: isMedication ? null : convertToUTC(reminderTime),
+          due_date: data.date,
+          due_time: null, // medication uses medication_times, not due_time
           notification_sent: false,
           status: 'pending',
           priority: 'medium',
-          // Store local times WITH timezone offset so scheduler can convert correctly
-          medication_times: adjustedMedTimes,
-          timezone_offset: tzOffset,  // minutes behind UTC (EST = 300)
-          recurrence: isMedication ? (data.recurrence || 'none') : 'none',
-          reminder_interval_days: isMedication ? parseInt(data.reminder_interval_days) || 0 : 0,
+          medication_times: data.medication_times,
+          timezone_offset: tzOffset,
+          recurrence: data.recurrence || 'none',
+          reminder_interval_days: 0,
+          related_entity_type: 'care_log',
+          related_entity_id: savedId,
+        };
+        if (existingReminderId) {
+          await api.entities.Reminder.update(existingReminderId, reminderData);
+        } else {
+          await api.entities.Reminder.create(reminderData);
+        }
+      }
+
+      // ── Non-medication reminder ────────────────────────────────────────────
+      if (!isMedication && createReminder && savedId) {
+        const reminderData = {
+          pet_id: data.pet_id,
+          type: typeMapping[data.type] || 'other',
+          title: `${data.title} - Reminder`,
+          description: `Reminder for: ${data.title}`,
+          due_date: reminderDueDate,
+          due_time: convertToUTC(reminderTime),
+          notification_sent: false,
+          status: 'pending',
+          priority: 'medium',
+          medication_times: [],
+          timezone_offset: new Date().getTimezoneOffset(),
+          recurrence: 'none',
+          reminder_interval_days: 0,
           related_entity_type: 'care_log',
           related_entity_id: savedId,
         };
@@ -182,6 +186,8 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
     setSaving(false);
   };
 
+  const isPremium = user?.premium_subscriber === true || user?.role === 'admin';
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -192,6 +198,8 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+
+          {/* Pet selector */}
           {pets && pets.length > 0 && (
             <div className="space-y-2">
               <Label>Pet</Label>
@@ -204,6 +212,7 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
             </div>
           )}
 
+          {/* Type + Status */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Type</Label>
@@ -227,69 +236,65 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
             </div>
           </div>
 
+          {/* Title */}
           <div className="space-y-2">
             <Label>Title *</Label>
-            <Input value={form.title} onChange={(e) => handleChange("title", e.target.value)} required placeholder="e.g. Rabies Vaccine" />
+            <Input
+              value={form.title}
+              onChange={(e) => handleChange("title", e.target.value)}
+              required
+              placeholder="e.g. Rabies Vaccine"
+            />
           </div>
 
+          {/* Date */}
           <div className="space-y-2">
             <Label>Date *</Label>
-            <Input type="date" value={form.date} onChange={(e) => handleChange("date", e.target.value)} required />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="create-reminder"
-              checked={createReminder || form.type === 'medication'}
-              onCheckedChange={setCreateReminder}
-              disabled={!user?.premium_subscriber && user?.role !== 'admin' || form.type === 'medication'}
+            <Input
+              type="date"
+              value={form.date}
+              onChange={(e) => handleChange("date", e.target.value)}
+              required
             />
-            <Label
-              htmlFor="create-reminder"
-              className={`font-normal ${!user?.premium_subscriber && user?.role !== 'admin' ? 'text-gray-400 cursor-not-allowed' : 'cursor-pointer'}`}
-            >
-              {form.type === 'medication' ? 'Reminder auto-created from medication times' : 'Create a reminder for this entry'}
-            </Label>
-            {user?.premium_subscriber !== true && user?.role !== 'admin' && (
-              <Badge className="ml-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs flex items-center gap-1">
-                <Crown className="w-3 h-3" />
-                Premium
-              </Badge>
-            )}
           </div>
 
-          {createReminder && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Reminder Date *</Label>
-                <Input type="date" value={reminderDueDate} onChange={(e) => setReminderDueDate(e.target.value)} required={createReminder} />
-              </div>
-              <div className="space-y-2">
-                <Label>Time of Day *</Label>
-                <TimePicker15 value={reminderTime} onChange={setReminderTime} required={createReminder} />
-              </div>
-            </div>
-          )}
-
+          {/* Weight field */}
           {form.type === "weight" && (
             <div className="space-y-2">
               <Label>Weight (lbs)</Label>
-              <Input type="number" value={form.weight_value} onChange={(e) => handleChange("weight_value", e.target.value)} placeholder="0" />
+              <Input
+                type="number"
+                value={form.weight_value}
+                onChange={(e) => handleChange("weight_value", e.target.value)}
+                placeholder="0"
+              />
             </div>
           )}
 
-          {form.type === "medication" && (
+          {/* ── MEDICATION FIELDS ──────────────────────────────────────────── */}
+          {isMedication && (
             <div className="space-y-4">
+              {/* Dosage + Frequency */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Dosage</Label>
-                  <Input value={form.medication_dosage} onChange={(e) => handleChange("medication_dosage", e.target.value)} placeholder="e.g. 10mg" />
+                  <Input
+                    value={form.medication_dosage}
+                    onChange={(e) => handleChange("medication_dosage", e.target.value)}
+                    placeholder="e.g. 10mg"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Frequency</Label>
-                  <Input value={form.medication_frequency} onChange={(e) => handleChange("medication_frequency", e.target.value)} placeholder="e.g. Twice daily" />
+                  <Input
+                    value={form.medication_frequency}
+                    onChange={(e) => handleChange("medication_frequency", e.target.value)}
+                    placeholder="e.g. Twice daily"
+                  />
                 </div>
               </div>
+
+              {/* Recurrence */}
               <div className="space-y-2">
                 <Label>Recurrence</Label>
                 <Select value={form.recurrence} onValueChange={(v) => handleChange("recurrence", v)}>
@@ -307,11 +312,18 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Custom recurrence */}
               {form.recurrence === "custom" && (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Every (interval)</Label>
-                    <Input type="number" min="1" max="365" value={form.custom_recurrence_interval} onChange={(e) => handleChange("custom_recurrence_interval", e.target.value)} placeholder="e.g. 5" />
+                    <Label>Every</Label>
+                    <Input
+                      type="number" min="1" max="365"
+                      value={form.custom_recurrence_interval}
+                      onChange={(e) => handleChange("custom_recurrence_interval", e.target.value)}
+                      placeholder="e.g. 5"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Unit</Label>
@@ -326,35 +338,107 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
                   </div>
                 </div>
               )}
+
+              {/* Medication times — these ARE the reminder times */}
               <div className="space-y-2">
-                <Label>Medication Times</Label>
+                <Label>Dose Times</Label>
+                <p className="text-xs text-slate-500">
+                  We'll send a notification at each dose time. No separate reminder needed.
+                </p>
                 <div className="space-y-2">
-                  {form.medication_times && form.medication_times.map((time, idx) => (
+                  {(form.medication_times || []).map((time, idx) => (
                     <div key={idx} className="flex gap-2 items-center">
                       <div className="flex-1">
                         <TimePicker15
                           value={time || "09:00"}
-                          onChange={(val) => { const t = [...form.medication_times]; t[idx] = val; handleChange("medication_times", t); }}
+                          onChange={(val) => {
+                            const t = [...form.medication_times];
+                            t[idx] = val;
+                            handleChange("medication_times", t);
+                          }}
                         />
                       </div>
-                      <Button type="button" variant="outline" size="sm" onClick={() => handleChange("medication_times", form.medication_times.filter((_, i) => i !== idx))}>Remove</Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleChange("medication_times", form.medication_times.filter((_, i) => i !== idx))}
+                      >
+                        Remove
+                      </Button>
                     </div>
                   ))}
-                  <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => handleChange("medication_times", [...(form.medication_times || []), "09:00"])}>+ Add Time</Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => handleChange("medication_times", [...(form.medication_times || []), "09:00"])}
+                  >
+                    + Add Dose Time
+                  </Button>
                 </div>
               </div>
-              {(form.recurrence === "daily" || form.recurrence === "2x-daily") && (
-                <div className="space-y-2">
-                  <Label>Remind me before dose (minutes)</Label>
-                  <Input type="number" min="0" max="30" value={form.reminder_interval_days} onChange={(e) => handleChange("reminder_interval_days", parseInt(e.target.value) || 0)} placeholder="e.g. 15" />
-                </div>
-              )}
             </div>
           )}
 
+          {/* ── NON-MEDICATION REMINDER ────────────────────────────────────── */}
+          {!isMedication && (
+            <>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="create-reminder"
+                  checked={createReminder}
+                  onCheckedChange={setCreateReminder}
+                  disabled={!isPremium}
+                />
+                <Label
+                  htmlFor="create-reminder"
+                  className={`font-normal ${!isPremium ? 'text-gray-400 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                  Create a reminder for this entry
+                </Label>
+                {!isPremium && (
+                  <Badge className="ml-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs flex items-center gap-1">
+                    <Crown className="w-3 h-3" />
+                    Premium
+                  </Badge>
+                )}
+              </div>
+
+              {createReminder && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Reminder Date *</Label>
+                    <Input
+                      type="date"
+                      value={reminderDueDate}
+                      onChange={(e) => setReminderDueDate(e.target.value)}
+                      required={createReminder}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Time of Day *</Label>
+                    <TimePicker15
+                      value={reminderTime}
+                      onChange={setReminderTime}
+                      required={createReminder}
+                    />
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Notes */}
           <div className="space-y-2">
             <Label>Notes</Label>
-            <Textarea value={form.description} onChange={(e) => handleChange("description", e.target.value)} placeholder="Additional details..." rows={3} />
+            <Textarea
+              value={form.description}
+              onChange={(e) => handleChange("description", e.target.value)}
+              placeholder="Additional details..."
+              rows={3}
+            />
           </div>
 
           <div className="flex justify-end gap-3 pt-2">

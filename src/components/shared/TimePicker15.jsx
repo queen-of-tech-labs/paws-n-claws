@@ -1,30 +1,11 @@
-// TimePicker15 — A time selector that only allows 15-minute intervals.
-// This matches the scheduler which runs every 15 minutes.
-// Replaces <Input type="time"> wherever reminders are set.
+// TimePicker15 — Hour + Minute dropdowns, minutes locked to 15-min intervals.
+// Two compact selects side by side: one for hour (12-hour + AM/PM), one for :00/:15/:30/:45.
+// Much faster to use than a single long scrolling list.
+// Keeps the same API: value="HH:MM" (24hr), onChange(newValue).
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-// Generate all times in HH:MM format at 15-minute intervals
-function generateTimeOptions() {
-  const options = [];
-  for (let h = 0; h < 24; h++) {
-    for (let m of [0, 15, 30, 45]) {
-      const hh = String(h).padStart(2, '0');
-      const mm = String(m).padStart(2, '0');
-      const value = `${hh}:${mm}`;
-      // Display in 12-hour format
-      const period = h < 12 ? 'AM' : 'PM';
-      const displayH = h === 0 ? 12 : h > 12 ? h - 12 : h;
-      const label = `${displayH}:${mm} ${period}`;
-      options.push({ value, label });
-    }
-  }
-  return options;
-}
-
-const TIME_OPTIONS = generateTimeOptions();
-
-// Round any existing HH:MM value to the nearest 15-minute slot
+// Round any HH:MM string to the nearest 15-minute slot
 export function roundToNearest15(timeStr) {
   if (!timeStr) return '09:00';
   const [h, m] = timeStr.split(':').map(Number);
@@ -35,19 +16,94 @@ export function roundToNearest15(timeStr) {
   return `${String(h).padStart(2, '0')}:${String(rounded).padStart(2, '0')}`;
 }
 
+// Parse a "HH:MM" 24hr string into { hour24, minute, period }
+function parseTime(timeStr) {
+  const safe = roundToNearest15(timeStr || '09:00');
+  const [h, m] = safe.split(':').map(Number);
+  return {
+    hour24: h,
+    minute: m,
+    period: h < 12 ? 'AM' : 'PM',
+    hour12: h === 0 ? 12 : h > 12 ? h - 12 : h,
+  };
+}
+
+// Convert hour12 + period back to hour24
+function toHour24(hour12, period) {
+  const h = parseInt(hour12);
+  if (period === 'AM') return h === 12 ? 0 : h;
+  return h === 12 ? 12 : h + 12;
+}
+
+// Format to HH:MM 24hr
+function toTimeStr(hour24, minute) {
+  return `${String(hour24).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+const HOURS = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+const MINUTES = [
+  { value: 0, label: ':00' },
+  { value: 15, label: ':15' },
+  { value: 30, label: ':30' },
+  { value: 45, label: ':45' },
+];
+
 export default function TimePicker15({ value, onChange, required, className }) {
-  const safeValue = roundToNearest15(value);
+  const { hour12, minute, period } = parseTime(value);
+
+  const handleHourChange = (newHour12) => {
+    const h24 = toHour24(newHour12, period);
+    onChange(toTimeStr(h24, minute));
+  };
+
+  const handleMinuteChange = (newMinute) => {
+    const h24 = toHour24(hour12, period);
+    onChange(toTimeStr(h24, parseInt(newMinute)));
+  };
+
+  const handlePeriodChange = (newPeriod) => {
+    const h24 = toHour24(hour12, newPeriod);
+    onChange(toTimeStr(h24, minute));
+  };
+
+  const triggerClass = className || 'bg-slate-800 border-slate-700 text-white';
 
   return (
-    <Select value={safeValue} onValueChange={onChange} required={required}>
-      <SelectTrigger className={className || 'bg-slate-800 border-slate-700 text-white'}>
-        <SelectValue placeholder="Select time" />
-      </SelectTrigger>
-      <SelectContent className="max-h-60">
-        {TIME_OPTIONS.map(({ value: v, label }) => (
-          <SelectItem key={v} value={v}>{label}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className="flex gap-1">
+      {/* Hour */}
+      <Select value={String(hour12)} onValueChange={handleHourChange} required={required}>
+        <SelectTrigger className={`${triggerClass} w-16`}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {HOURS.map(h => (
+            <SelectItem key={h} value={String(h)}>{h}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {/* Minute */}
+      <Select value={String(minute)} onValueChange={handleMinuteChange}>
+        <SelectTrigger className={`${triggerClass} w-20`}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {MINUTES.map(({ value: v, label }) => (
+            <SelectItem key={v} value={String(v)}>{label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {/* AM/PM */}
+      <Select value={period} onValueChange={handlePeriodChange}>
+        <SelectTrigger className={`${triggerClass} w-20`}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="AM">AM</SelectItem>
+          <SelectItem value="PM">PM</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
