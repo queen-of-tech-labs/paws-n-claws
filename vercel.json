@@ -15,6 +15,6 @@
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "crons": [
-    { "path": "/api/scheduler", "schedule": "*/5 * * * *" }
+    { "path": "/api/scheduler", "schedule": "*/15 * * * *" }
   ]
 }
