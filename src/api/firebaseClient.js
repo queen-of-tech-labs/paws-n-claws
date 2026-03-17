@@ -5,6 +5,10 @@ import {
   signInWithCredential,
   signInWithEmailLink,
   sendSignInLinkToEmail,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendEmailVerification,
+  sendPasswordResetEmail,
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
@@ -112,6 +116,24 @@ export const auth = {
     await sendSignInLinkToEmail(fbAuth, email, actionCodeSettings);
     window.localStorage.setItem('emailForSignIn', email);
     window.sessionStorage.setItem('emailForSignIn', email);
+  },
+
+  /** Register with email + password */
+  async signUp(email, password) {
+    const result = await createUserWithEmailAndPassword(fbAuth, email, password);
+    // Send verification email (non-blocking — don't await so login still works)
+    sendEmailVerification(result.user).catch(() => {});
+    return result;
+  },
+
+  /** Sign in with email + password */
+  async signInWithPassword(email, password) {
+    return signInWithEmailAndPassword(fbAuth, email, password);
+  },
+
+  /** Send password reset email */
+  async sendPasswordReset(email) {
+    return sendPasswordResetEmail(fbAuth, email);
   },
 
   /** Sign out */

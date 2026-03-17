@@ -1,6 +1,5 @@
-// Vercel serverless function — /auth-callback
-// Firebase sends the user here after validating the magic link.
-// This page: 1) completes sign-in, 2) stores auth state, 3) opens the app via custom scheme.
+// Vercel serverless function — serves auth-callback page with Firebase config injected
+// This keeps Firebase config values in Vercel env vars (safe) rather than hardcoded in HTML
 export default function handler(req, res) {
   const config = {
     apiKey:            process.env.VITE_FIREBASE_API_KEY,
@@ -9,9 +8,6 @@ export default function handler(req, res) {
     messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
     appId:             process.env.VITE_FIREBASE_APP_ID,
   };
-
-  // Get email from query param if present (we embed it in continueUrl)
-  const emailFromQuery = req.query.email || '';
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -25,53 +21,32 @@ export default function handler(req, res) {
       background: #0f172a; color: #fff;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       display: flex; align-items: center; justify-content: center;
-      min-height: 100vh; flex-direction: column; gap: 16px; padding: 24px;
-      text-align: center;
+      min-height: 100vh; flex-direction: column; gap: 16px;
     }
     .spinner {
-      width: 48px; height: 48px;
-      border: 4px solid #1e293b; border-top-color: #3b82f6;
+      width: 40px; height: 40px;
+      border: 4px solid #334155; border-top-color: #3b82f6;
       border-radius: 50%; animation: spin 0.8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    h2 { font-size: 20px; font-weight: 600; }
-    p { color: #94a3b8; font-size: 15px; max-width: 300px; line-height: 1.5; }
-    .error { color: #f87171; }
+    .logo { font-size: 32px; margin-bottom: 4px; }
+    p { color: #94a3b8; font-size: 15px; }
+    .error { color: #f87171; font-size: 14px; max-width: 300px; text-align: center; }
     .btn {
-      padding: 14px 28px; background: #3b82f6; color: white;
-      border: none; border-radius: 12px; font-size: 16px; font-weight: 600;
-      cursor: pointer; text-decoration: none; display: inline-block; margin-top: 8px;
+      margin-top: 12px; padding: 12px 24px;
+      background: #3b82f6; color: white;
+      border: none; border-radius: 10px;
+      font-size: 15px; font-weight: 600;
+      cursor: pointer; display: none; text-decoration: none;
     }
-    .btn-secondary {
-      padding: 12px 24px; background: transparent; color: #64748b;
-      border: 1px solid #334155; border-radius: 12px; font-size: 14px;
-      cursor: pointer; text-decoration: none; display: inline-block;
-    }
-    #actions { display: none; flex-direction: column; gap: 12px; align-items: center; margin-top: 8px; }
-    #emailForm { display: none; flex-direction: column; gap: 12px; width: 100%; max-width: 320px; margin-top: 8px; }
-    input {
-      padding: 12px 16px; background: #1e293b; border: 1px solid #334155;
-      border-radius: 10px; color: white; font-size: 15px; width: 100%;
-    }
-    input::placeholder { color: #475569; }
   </style>
 </head>
 <body>
-  <div style="font-size:40px">🐾</div>
+  <div class="logo">🐾</div>
   <div class="spinner" id="spinner"></div>
-  <h2 id="title">Signing you in…</h2>
-  <p id="msg">Please wait a moment.</p>
-
-  <div id="actions">
-    <a class="btn" id="openAppBtn" href="pawsclaws://login">Open Paws &amp; Claws App</a>
-    <a class="btn-secondary" id="webBtn" href="https://paws-n-claws.vercel.app/#/dashboard">Continue in browser instead</a>
-  </div>
-
-  <div id="emailForm">
-    <p style="color:#94a3b8;font-size:14px;">Enter the email you used to request the sign-in link:</p>
-    <input type="email" id="emailInput" placeholder="you@example.com" />
-    <button class="btn" onclick="submitEmail()">Confirm &amp; Sign In</button>
-  </div>
+  <p id="msg">Signing you in…</p>
+  <p class="error" id="error" style="display:none"></p>
+  <a class="btn" id="openBtn" href="pawsclaws://login">Open Paws & Claws App</a>
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -83,97 +58,63 @@ export default function handler(req, res) {
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
 
-    // Make submitEmail available globally
-    window._auth = auth;
-    window._signInWithEmailLink = signInWithEmailLink;
-
-    function show(id) { document.getElementById(id).style.display = 'flex'; }
-    function hide(id) { document.getElementById(id).style.display = 'none'; }
-    function setText(id, text) { document.getElementById(id).textContent = text; }
+    function getParam(name) {
+      const url = new URL(window.location.href);
+      return url.searchParams.get(name);
+    }
 
     function showError(msg) {
-      hide('spinner');
-      setText('title', 'Sign-in failed');
-      document.getElementById('msg').innerHTML = '<span class="error">' + msg + '</span><br><br>Please go back to the app and request a new magic link.';
+      document.getElementById('spinner').style.display = 'none';
+      document.getElementById('msg').style.display = 'none';
+      document.getElementById('error').style.display = 'block';
+      document.getElementById('error').textContent = msg;
+      document.getElementById('openBtn').style.display = 'inline-block';
     }
 
-    function showSuccess(email) {
-      hide('spinner');
-      setText('title', 'Signed in!');
-      setText('msg', 'Opening Paws & Claws…');
-
-      // Update the open button with email param
-      document.getElementById('openAppBtn').href = 'pawsclaws://login?email=' + encodeURIComponent(email);
-
-      // Try to open the app
-      window.location.href = 'pawsclaws://login?email=' + encodeURIComponent(email);
-
-      // Show manual button after 2s in case app didn't open
-      setTimeout(() => {
-        setText('msg', 'If the app didn\\'t open automatically, tap the button below.');
-        show('actions');
-      }, 2000);
-    }
-
-    async function doSignIn(email) {
-      try {
-        await window._signInWithEmailLink(window._auth, email, window.location.href);
-        // Save for app to pick up
-        localStorage.setItem('pendingAuthEmail', email);
-        localStorage.setItem('emailForSignIn', email);
-        showSuccess(email);
-      } catch (err) {
-        console.error('Sign-in error:', err);
-        if (err.code === 'auth/invalid-action-code') {
-          showError('This link has already been used or has expired.');
-        } else {
-          showError(err.message);
-        }
-      }
-    }
-
-    window.submitEmail = async function() {
-      const email = document.getElementById('emailInput').value.trim();
-      if (!email) return;
-      hide('emailForm');
-      show('spinner');
-      setText('title', 'Signing you in…');
-      await doSignIn(email);
-    };
-
-    async function init() {
+    async function handleSignIn() {
       const currentUrl = window.location.href;
 
       if (!isSignInWithEmailLink(auth, currentUrl)) {
-        showError('This link is invalid or has expired.');
+        showError('This link has expired or is invalid. Please request a new magic link from the app.');
         return;
       }
 
-      // Try to get email: from URL param (we embed it), then localStorage
-      const urlParams = new URLSearchParams(window.location.search);
-      const email = urlParams.get('email')
-        || '${emailFromQuery}'
+      const email = getParam('email')
         || localStorage.getItem('emailForSignIn')
-        || localStorage.getItem('pendingAuthEmail')
-        || sessionStorage.getItem('emailForSignIn');
+        || sessionStorage.getItem('emailForSignIn')
+        || window.prompt('Please enter your email to confirm sign-in:');
 
-      if (email && email !== 'undefined' && email !== 'null') {
-        await doSignIn(email);
-      } else {
-        // Ask user for email — show a clean form, not a browser prompt
-        hide('spinner');
-        setText('title', 'One more step');
-        hide('msg');
-        show('emailForm');
+      if (!email) { showError('Email is required to complete sign-in.'); return; }
+
+      try {
+        await signInWithEmailLink(auth, email, currentUrl);
+
+        // Store email so the app's Login.jsx can find it when it opens
+        localStorage.setItem('emailForSignIn', email);
+        localStorage.setItem('pendingAuthEmail', email);
+
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('msg').textContent = '✓ Signed in! Opening the app…';
+
+        // Open the app via custom URI scheme
+        window.location.href = 'pawsclaws://login?email=' + encodeURIComponent(email);
+
+        // Fallback: redirect to web dashboard after 2.5s if app didn't open
+        setTimeout(() => {
+          window.location.replace('https://paws-n-claws.vercel.app/#/dashboard');
+        }, 2500);
+
+      } catch (err) {
+        console.error(err);
+        showError('Sign-in failed: ' + err.message + '. Please try requesting a new link.');
       }
     }
 
-    init();
+    handleSignIn();
   </script>
 </body>
 </html>`;
 
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Content-Type', 'text/html');
   res.status(200).send(html);
 }
