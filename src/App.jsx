@@ -40,6 +40,7 @@ import LoginPage from './pages/Login';
 import PetPassport from './pages/PetPassport';
 import LostPetNetwork from './pages/LostPetNetwork';
 import LostPetAlertDetail from './pages/LostPetAlertDetail';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 
 // ── Shared spinner ─────────────────────────────────────────────────────────
 const Spinner = () => (
@@ -224,6 +225,7 @@ const AppRoutes = () => {
         <Route path="/passport/:petId" element={<PetPassport />} />
         <Route path="/lost-pet-network" element={<ProtectedRoute><Layout currentPageName="LostPetNetwork"><LostPetNetwork /></Layout></ProtectedRoute>} />
         <Route path="/lost-pet/:alertId" element={<LostPetAlertDetail />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="*" element={<PageNotFound />} />
       </Routes>
       <NotificationPromptManager />

@@ -28,7 +28,8 @@ function Wrapper({ children }) {
           {children}
         </div>
         <p className="text-center text-xs text-slate-500 mt-6">
-          By signing in, you agree to our Terms of Service and Privacy Policy.
+          By signing in, you agree to our{' '}
+          <a href="#/privacy" className="text-blue-400 hover:text-blue-300 underline">Privacy Policy</a>.
         </p>
       </div>
     </div>
