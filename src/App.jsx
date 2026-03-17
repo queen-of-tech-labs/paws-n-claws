@@ -52,8 +52,61 @@ const PageNotFound = () => (
   </div>
 );
 
+const VerifyEmailScreen = () => {
+  const { user, logout, resendVerificationEmail } = useAuth();
+  const [sent, setSent] = React.useState(false);
+  const [checking, setChecking] = React.useState(false);
+
+  const handleResend = async () => {
+    await resendVerificationEmail();
+    setSent(true);
+  };
+
+  const handleCheckVerified = async () => {
+    setChecking(true);
+    // Reload the Firebase user to get the latest emailVerified status
+    await import('@/api/firebaseClient').then(async ({ fbAuth }) => {
+      await fbAuth.currentUser?.reload();
+      // onAuthStateChanged will re-fire and update the context automatically
+    });
+    setChecking(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
+      <div className="w-full max-w-md text-center">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center mb-6 mx-auto">
+          <span className="text-2xl">🐾</span>
+        </div>
+        <h1 className="text-2xl font-bold text-white mb-2">Verify your email</h1>
+        <p className="text-slate-400 text-sm mb-2">
+          We sent a verification link to
+        </p>
+        <p className="text-white font-medium mb-6">{user?.email}</p>
+        <p className="text-slate-400 text-sm mb-8">
+          Click the link in that email, then come back and tap the button below.
+        </p>
+        <div className="space-y-3">
+          <button onClick={handleCheckVerified} disabled={checking}
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition disabled:opacity-50">
+            {checking ? 'Checking…' : "I've verified my email"}
+          </button>
+          <button onClick={handleResend}
+            className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-medium transition">
+            {sent ? '✓ Email sent!' : 'Resend verification email'}
+          </button>
+          <button onClick={() => logout()}
+            className="w-full py-3 text-slate-500 hover:text-slate-300 text-sm transition">
+            Sign out
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, isLoadingAuth } = useAuth();
+  const { isAuthenticated, isEmailVerified, isLoadingAuth } = useAuth();
   if (isLoadingAuth) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-slate-950">
@@ -61,7 +114,8 @@ const ProtectedRoute = ({ children }) => {
       </div>
     );
   }
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isAuthenticated && !isEmailVerified) return <Navigate to="/login" replace />;
+  if (!isEmailVerified) return <VerifyEmailScreen />;
   return children;
 };
 

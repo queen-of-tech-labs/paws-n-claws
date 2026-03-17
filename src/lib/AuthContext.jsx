@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { fbAuth, db, auth as authHelpers } from '@/api/firebaseClient';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, sendEmailVerification } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { initializeOneSignal } from '@/components/services/oneSignalService';
 import { queryClientInstance } from '@/lib/query-client';
@@ -13,6 +13,7 @@ const NOTIF_SETUP_KEY = 'paws_notif_setup_done';
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [authError, setAuthError] = useState(null);
   const previousUidRef = useRef(null);
@@ -28,8 +29,21 @@ export const AuthProvider = ({ children }) => {
         previousUidRef.current = newUid;
       }
 
-      if (firebaseUser) { await loadUser(firebaseUser); }
-      else { setUser(null); setIsAuthenticated(false); setIsLoadingAuth(false); }
+      if (firebaseUser) {
+        // Google users are always verified. For email/password users,
+        // block access until they verify their email address.
+        const isGoogleUser = firebaseUser.providerData?.some(p => p.providerId === 'google.com');
+        if (!isGoogleUser && !firebaseUser.emailVerified) {
+          // Signed in but not verified — show the verify screen, don't load full profile
+          setUser({ id: firebaseUser.uid, email: firebaseUser.email, emailVerified: false });
+          setIsAuthenticated(false);
+          setIsEmailVerified(false);
+          setIsLoadingAuth(false);
+          return;
+        }
+        await loadUser(firebaseUser);
+      }
+      else { setUser(null); setIsAuthenticated(false); setIsEmailVerified(false); setIsLoadingAuth(false); }
     });
     return () => unsubscribe();
   }, []);
@@ -62,12 +76,14 @@ export const AuthProvider = ({ children }) => {
       };
       setUser(fullUser);
       setIsAuthenticated(true);
+      setIsEmailVerified(true);
       setIsLoadingAuth(false);
       initializeAndPrompt(fullUser);
     } catch (error) {
       console.error('Error loading user profile:', error);
       setUser({ id: firebaseUser.uid, email: firebaseUser.email });
       setIsAuthenticated(true);
+      setIsEmailVerified(true);
       setIsLoadingAuth(false);
     }
   };
@@ -102,13 +118,18 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async (redirectTo) => { await authHelpers.logout(redirectTo); };
   const navigateToLogin = () => { window.location.href = '/login'; };
+  const resendVerificationEmail = async () => {
+    if (fbAuth.currentUser) {
+      await sendEmailVerification(fbAuth.currentUser);
+    }
+  };
 
   return (
     <AuthContext.Provider value={{
-      user, isAuthenticated, isLoadingAuth,
+      user, isAuthenticated, isEmailVerified, isLoadingAuth,
       isLoadingPublicSettings: false,
       authError, appPublicSettings: null,
-      logout, navigateToLogin,
+      logout, navigateToLogin, resendVerificationEmail,
     }}>
       {children}
     </AuthContext.Provider>
