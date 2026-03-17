@@ -308,20 +308,20 @@ export default function ReminderForm({ pets, onSubmit, isLoading, initialReminde
           {/* Medication Time Fields */}
           {formData.type === "medication" && (
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Medication Times (HH:MM)</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Medication Times</label>
               <div className="space-y-2">
                 {formData.medication_times && formData.medication_times.map((time, idx) => (
-                  <div key={idx} className="flex gap-2">
-                    <Input
-                      type="time"
-                      value={time}
-                      onChange={(e) => {
-                        const newTimes = [...formData.medication_times];
-                        newTimes[idx] = e.target.value;
-                        setFormData({ ...formData, medication_times: newTimes });
-                      }}
-                      className="flex-1 bg-slate-800 border-slate-700 text-white"
-                    />
+                  <div key={idx} className="flex gap-2 items-center">
+                    <div className="flex-1">
+                      <TimePicker15
+                        value={time || "09:00"}
+                        onChange={(val) => {
+                          const newTimes = [...formData.medication_times];
+                          newTimes[idx] = val;
+                          setFormData({ ...formData, medication_times: newTimes });
+                        }}
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
@@ -336,7 +336,7 @@ export default function ReminderForm({ pets, onSubmit, isLoading, initialReminde
                 ))}
                 <button
                   type="button"
-                  onClick={() => setFormData({ ...formData, medication_times: [...(formData.medication_times || []), ""] })}
+                  onClick={() => setFormData({ ...formData, medication_times: [...(formData.medication_times || []), "09:00"] })}
                   className="w-full px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg text-sm"
                 >
                   + Add Time

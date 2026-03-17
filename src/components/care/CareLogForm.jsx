@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import api from '@/api/firebaseClient';
 import { Button } from "@/components/ui/button";
+import TimePicker15, { roundToNearest15 } from "@/components/shared/TimePicker15";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -265,7 +266,7 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
               </div>
               <div className="space-y-2">
                 <Label>Time of Day *</Label>
-                <Input type="time" value={reminderTime} onChange={(e) => setReminderTime(e.target.value)} required={createReminder} />
+                <TimePicker15 value={reminderTime} onChange={setReminderTime} required={createReminder} />
               </div>
             </div>
           )}
@@ -329,12 +330,17 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
                 <Label>Medication Times</Label>
                 <div className="space-y-2">
                   {form.medication_times && form.medication_times.map((time, idx) => (
-                    <div key={idx} className="flex gap-2">
-                      <Input type="time" value={time} onChange={(e) => { const t = [...form.medication_times]; t[idx] = e.target.value; handleChange("medication_times", t); }} className="flex-1" />
+                    <div key={idx} className="flex gap-2 items-center">
+                      <div className="flex-1">
+                        <TimePicker15
+                          value={time || "09:00"}
+                          onChange={(val) => { const t = [...form.medication_times]; t[idx] = val; handleChange("medication_times", t); }}
+                        />
+                      </div>
                       <Button type="button" variant="outline" size="sm" onClick={() => handleChange("medication_times", form.medication_times.filter((_, i) => i !== idx))}>Remove</Button>
                     </div>
                   ))}
-                  <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => handleChange("medication_times", [...(form.medication_times || []), ""])}>+ Add Time</Button>
+                  <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => handleChange("medication_times", [...(form.medication_times || []), "09:00"])}>+ Add Time</Button>
                 </div>
               </div>
               {(form.recurrence === "daily" || form.recurrence === "2x-daily") && (

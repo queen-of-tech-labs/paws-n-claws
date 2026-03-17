@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Loader2, Crown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import TimePicker15 from "@/components/shared/TimePicker15";
 
 function convertToUTC(localTime) {
   if (!localTime) return "00:00";
@@ -251,7 +252,7 @@ export default function AppointmentForm({ open, onClose, petId, pets, appointmen
               </div>
               <div className="space-y-2">
                 <Label>Time of Day *</Label>
-                <Input type="time" value={reminderTime} onChange={(e) => setReminderTime(e.target.value)} required={createReminder} />
+                <TimePicker15 value={reminderTime} onChange={setReminderTime} required={createReminder} />
               </div>
             </div>
           )}
