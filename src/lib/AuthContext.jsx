@@ -15,32 +15,39 @@ export const AuthProvider = ({ children }) => {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [authError, setAuthError] = useState(null);
   const previousUidRef = useRef(null);
-  const hasInitializedRef = useRef(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(fbAuth, async (firebaseUser) => {
-      // Mark that onAuthStateChanged has fired at least once
-      hasInitializedRef.current = true;
       const newUid = firebaseUser?.uid || null;
 
+      // Clear cached data when user changes (logout, switch account)
       if (previousUidRef.current !== newUid) {
         queryClientInstance.clear();
         previousUidRef.current = newUid;
       }
 
       if (firebaseUser) {
+        // Google users are always verified (Google guarantees email ownership)
         const isGoogleUser = firebaseUser.providerData?.some(
           p => p.providerId === 'google.com'
         );
-        if (!isGoogleUser && !firebaseUser.emailVerified) {
-          setUser({ id: firebaseUser.uid, email: firebaseUser.email, emailVerified: false });
-          setIsAuthenticated(false);
+        const verified = isGoogleUser || firebaseUser.emailVerified;
+
+        if (!verified) {
+          // Email/password user who hasn't verified yet
+          // Mark as authenticated (they have an account) but not verified
+          // App.jsx ProtectedRoute will show the VerifyEmailScreen
+          setUser({ id: firebaseUser.uid, email: firebaseUser.email });
+          setIsAuthenticated(true);
           setIsEmailVerified(false);
           setIsLoadingAuth(false);
           return;
         }
+
+        // Verified user — load full profile
         await loadUser(firebaseUser);
       } else {
+        // Signed out
         setUser(null);
         setIsAuthenticated(false);
         setIsEmailVerified(false);

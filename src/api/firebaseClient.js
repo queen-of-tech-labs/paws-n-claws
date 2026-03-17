@@ -2,11 +2,7 @@ import { initializeApp } from 'firebase/app';
 import {
   getAuth,
   signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
   signInWithCredential,
-  signInWithEmailLink,
-  sendSignInLinkToEmail,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendEmailVerification,
@@ -36,11 +32,6 @@ import {
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
-// ─────────────────────────────────────────────
-// Firebase config
-// Replace with your Firebase project credentials from:
-// Firebase Console → Project Settings → Your Apps → SDK setup
-// ─────────────────────────────────────────────
 const firebaseConfig = {
   apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain:        'paws-claws-pet-tracker-3t0ana.firebaseapp.com',
@@ -50,21 +41,17 @@ const firebaseConfig = {
   appId:             import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-const app       = initializeApp(firebaseConfig);
-const fbAuth    = getAuth(app);
-const db        = getFirestore(app);
-const fbStorage = getStorage(app);
+const app         = initializeApp(firebaseConfig);
+const fbAuth      = getAuth(app);
+const db          = getFirestore(app);
+const fbStorage   = getStorage(app);
 const fbFunctions = getFunctions(app);
 
 export { fbAuth, db, fbStorage, fbFunctions, Timestamp };
 
-// ─────────────────────────────────────────────
-// Auth helpers  (mirrors base44.auth.*)
-// ─────────────────────────────────────────────
 const googleProvider = new GoogleAuthProvider();
 
 export const auth = {
-  /** Returns the current user with profile merged in */
   async me() {
     const user = fbAuth.currentUser;
     if (!user) return null;
@@ -79,80 +66,47 @@ export const auth = {
     };
   },
 
-  /** Sign in with Google — native plugin on Android, redirect on web */
-  async redirectToLogin(redirectTo) {
+  // Google sign-in:
+  // - On Android: uses native SocialLogin plugin (works in APK)
+  // - On web: uses signInWithPopup with firebaseapp.com authDomain (works on Vercel)
+  async redirectToLogin() {
     const isNative = !!(window.Capacitor?.isNativePlatform?.());
     if (isNative) {
       const { SocialLogin } = await import('@capgo/capacitor-social-login');
-      await SocialLogin.initialize({ google: { webClientId: '264364776080-ig58tvhl9m7m6lp4eioa1qmpk2dc99l0.apps.googleusercontent.com' } });
+      await SocialLogin.initialize({
+        google: { webClientId: '264364776080-ig58tvhl9m7m6lp4eioa1qmpk2dc99l0.apps.googleusercontent.com' },
+      });
       const result = await SocialLogin.login({ provider: 'google', options: {} });
       const idToken = result?.result?.idToken || result?.result?.authentication?.idToken;
       if (!idToken) throw new Error('No ID token returned from Google');
       const credential = GoogleAuthProvider.credential(idToken);
       await signInWithCredential(fbAuth, credential);
     } else {
-      // Use redirect (not popup) on web — popup requires Firebase Hosting which we don't use.
-      // After Google auth, the page reloads and AuthContext picks up the signed-in user.
-      await signInWithRedirect(fbAuth, googleProvider);
+      await signInWithPopup(fbAuth, googleProvider);
     }
   },
 
-  /** Call this once on app load to pick up the result of a Google redirect sign-in */
-  async handleGoogleRedirectResult() {
-    try {
-      const result = await getRedirectResult(fbAuth);
-      return result; // null if no redirect happened, or UserCredential if it did
-    } catch (error) {
-      console.error('Google redirect result error:', error);
-      throw error;
-    }
-  },
-
-  /** Send magic link email */
-  async sendMagicLink(email, redirectTo) {
-    // The magic link redirects to /auth-callback on Vercel.
-    // That page completes Firebase sign-in in the browser, then opens
-    // the app via pawsclaws:// custom URI scheme — no prompt needed.
-    const continueUrl = 'https://paws-n-claws.vercel.app/auth-callback?email=' + encodeURIComponent(email);
-    const actionCodeSettings = {
-      url: continueUrl,
-      handleCodeInApp: true,
-      android: {
-        packageName: 'paws.claws.pet.tracker',
-        installIfNotAvailable: false,
-        minimumVersion: '1',
-      },
-    };
-    await sendSignInLinkToEmail(fbAuth, email, actionCodeSettings);
-    window.localStorage.setItem('emailForSignIn', email);
-    window.sessionStorage.setItem('emailForSignIn', email);
-  },
-
-  /** Register with email + password */
+  // Email + password sign up — sends verification email automatically
   async signUp(email, password) {
     const result = await createUserWithEmailAndPassword(fbAuth, email, password);
-    // Send verification email (non-blocking — don't await so login still works)
     sendEmailVerification(result.user).catch(() => {});
     return result;
   },
 
-  /** Sign in with email + password */
+  // Email + password sign in
   async signInWithPassword(email, password) {
     return signInWithEmailAndPassword(fbAuth, email, password);
   },
 
-  /** Send password reset email */
+  // Send password reset email
   async sendPasswordReset(email) {
     return sendPasswordResetEmail(fbAuth, email);
   },
 
-  /** Sign out */
-  async logout(redirectTo) {
+  async logout() {
     await signOut(fbAuth);
-    // navigation handled by caller
   },
 
-  /** Update current user's profile */
   async updateMe(updates) {
     const user = fbAuth.currentUser;
     if (!user) throw new Error('Not authenticated');
@@ -161,27 +115,18 @@ export const auth = {
     return updates;
   },
 
-  /** Check if user is authenticated */
   async isAuthenticated() {
     return !!fbAuth.currentUser;
   },
 
-  /** Subscribe to auth state changes */
   onAuthStateChanged(callback) {
     return onAuthStateChanged(fbAuth, callback);
   },
 };
 
-// ─────────────────────────────────────────────
-// Firestore entity helpers  (mirrors base44.entities.*)
-// Each entity maps to a Firestore collection.
-// ─────────────────────────────────────────────
-
-// Map field names: Firestore uses camelCase timestamps
 function normalizeOrder(orderStr = '-created_at') {
   const desc = orderStr.startsWith('-');
   const field = orderStr.replace(/^-/, '');
-  // Normalise common snake_case field names to Firestore camelCase
   const fieldMap = { created_at: 'createdAt', created_date: 'createdAt' };
   return { field: fieldMap[field] || field, direction: desc ? 'desc' : 'asc' };
 }
@@ -193,7 +138,6 @@ function docToEntity(docSnap) {
 
 function makeEntity(collectionName) {
   const col = () => collection(db, collectionName);
-
   return {
     async list(orderStr = '-createdAt', maxResults = 100) {
       const { field, direction } = normalizeOrder(orderStr);
@@ -201,7 +145,6 @@ function makeEntity(collectionName) {
       const snap = await getDocs(q);
       return snap.docs.map(docToEntity);
     },
-
     async filter(filters = {}, orderStr = '-createdAt', maxResults = 100) {
       const { field, direction } = normalizeOrder(orderStr);
       const constraints = [orderBy(field, direction), limit(maxResults)];
@@ -212,9 +155,6 @@ function makeEntity(collectionName) {
       const snap = await getDocs(q);
       return snap.docs.map(docToEntity);
     },
-
-    // filterOnly: filter without orderBy — avoids needing composite indexes.
-    // Sort results in your component instead.
     async filterOnly(filters = {}, maxResults = 100) {
       const constraints = [limit(maxResults)];
       Object.entries(filters).forEach(([key, val]) => {
@@ -224,29 +164,21 @@ function makeEntity(collectionName) {
       const snap = await getDocs(q);
       return snap.docs.map(docToEntity);
     },
-
     async get(id) {
       const snap = await getDoc(doc(db, collectionName, id));
       return docToEntity(snap);
     },
-
     async create(record) {
       const user = fbAuth.currentUser;
-      const data = {
-        ...record,
-        created_by: user?.email || null,
-        createdAt: serverTimestamp(),
-      };
+      const data = { ...record, created_by: user?.email || null, createdAt: serverTimestamp() };
       const ref = await addDoc(col(), data);
       return { id: ref.id, ...data };
     },
-
     async update(id, updates) {
       const ref = doc(db, collectionName, id);
       await updateDoc(ref, { ...updates, updatedAt: serverTimestamp() });
       return { id, ...updates };
     },
-
     async delete(id) {
       await deleteDoc(doc(db, collectionName, id));
       return true;
@@ -272,9 +204,6 @@ export const entities = {
   User:             makeEntity('profiles'),
 };
 
-// ─────────────────────────────────────────────
-// Firebase Functions  (mirrors base44.functions.invoke)
-// ─────────────────────────────────────────────
 export const functions = {
   async invoke(functionName, payload = {}) {
     const callable = httpsCallable(fbFunctions, functionName);
@@ -283,10 +212,6 @@ export const functions = {
   },
 };
 
-// ─────────────────────────────────────────────
-// AI / LLM  (mirrors base44.integrations.Core.InvokeLLM)
-// Calls a Firebase Function that wraps your AI provider
-// ─────────────────────────────────────────────
 export const integrations = {
   Core: {
     async InvokeLLM({ prompt, response_json_schema, add_context_from_internet }) {
@@ -297,9 +222,6 @@ export const integrations = {
   },
 };
 
-// ─────────────────────────────────────────────
-// Storage  (mirrors base44 file upload)
-// ─────────────────────────────────────────────
 export const storage = {
   async upload(bucket, path, file) {
     const storageRef = ref(fbStorage, `${bucket}/${path}`);
@@ -309,6 +231,5 @@ export const storage = {
   },
 };
 
-// Default export — same shape the app uses as `api`
 const api = { auth, entities, functions, integrations, storage };
 export default api;
