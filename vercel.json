@@ -11,6 +11,8 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/auth-callback", "destination": "/api/auth-callback" },
+    { "source": "/__/auth/handler", "destination": "/api/auth-handler" },
+    { "source": "/__/auth/(.*)", "destination": "/__/auth/$1" },
     { "source": "/.well-known/(.*)", "destination": "/.well-known/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],

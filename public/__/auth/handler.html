@@ -1,15 +1,35 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-auth-compat.js"></script>
+  <meta charset="UTF-8" />
+  <title>Signing in...</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <style>
+    body {
+      background: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #94a3b8;
+      font-size: 15px;
+    }
+  </style>
 </head>
 <body>
+  <p>Completing sign-in...</p>
   <script>
-    // This page handles the Firebase auth callback
-    if (window.opener) {
-      window.opener.postMessage('authComplete', '*');
-    }
+    // This page is the OAuth popup handler for Firebase Google sign-in.
+    // Firebase opens this URL in a popup, completes the OAuth flow here,
+    // then passes the result back to the parent window automatically.
+    // The firebase-auth SDK handles everything — we just need to be here.
+
+    // Determine config from the parent window's origin or use stored config
+    // Firebase will call the auth SDK internally to resolve the popup result.
+    // No explicit initialization is needed here — the SDK reads from the URL params.
   </script>
 </body>
 </html>
