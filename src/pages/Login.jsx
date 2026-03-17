@@ -111,6 +111,10 @@ export default function LoginPage() {
     setError('');
     try {
       await authHelpers.redirectToLogin();
+      // Don't set loading=false here — let onAuthStateChanged fire naturally.
+      // AuthContext will update isAuthenticated=true → App.jsx redirects to /dashboard.
+      // If we set loading=false, there's a race where the login page re-renders
+      // before auth state updates, causing a flash back to the login form.
     } catch (err) {
       setError(friendlyError(err));
       setLoading(false);

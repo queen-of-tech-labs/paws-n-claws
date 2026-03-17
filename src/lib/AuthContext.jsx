@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { fbAuth, db, auth as authHelpers } from '@/api/firebaseClient';
-import { onAuthStateChanged, sendEmailVerification, getRedirectResult } from 'firebase/auth';
+import { onAuthStateChanged, sendEmailVerification } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { initializeOneSignal } from '@/components/services/oneSignalService';
 import { queryClientInstance } from '@/lib/query-client';
@@ -15,55 +15,38 @@ export const AuthProvider = ({ children }) => {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [authError, setAuthError] = useState(null);
   const previousUidRef = useRef(null);
+  const hasInitializedRef = useRef(false);
 
   useEffect(() => {
-    let unsubscribe = () => {};
+    const unsubscribe = onAuthStateChanged(fbAuth, async (firebaseUser) => {
+      // Mark that onAuthStateChanged has fired at least once
+      hasInitializedRef.current = true;
+      const newUid = firebaseUser?.uid || null;
 
-    async function init() {
-      // IMPORTANT: Always call getRedirectResult first and await it.
-      // This processes the Google redirect before onAuthStateChanged fires,
-      // so Firebase auth state is fully updated before we check it.
-      try {
-        await getRedirectResult(fbAuth);
-      } catch (err) {
-        // Ignore errors here — onAuthStateChanged will handle the no-user case
-        console.warn('getRedirectResult error (non-fatal):', err.code);
+      if (previousUidRef.current !== newUid) {
+        queryClientInstance.clear();
+        previousUidRef.current = newUid;
       }
 
-      // Now subscribe to auth state — by this point, if a Google redirect
-      // just completed, the user will already be set in Firebase auth.
-      unsubscribe = onAuthStateChanged(fbAuth, async (firebaseUser) => {
-        const newUid = firebaseUser?.uid || null;
-
-        if (previousUidRef.current !== newUid) {
-          queryClientInstance.clear();
-          previousUidRef.current = newUid;
-        }
-
-        if (firebaseUser) {
-          // Google users are always verified.
-          // Email/password users must verify before accessing the app.
-          const isGoogleUser = firebaseUser.providerData?.some(
-            p => p.providerId === 'google.com'
-          );
-          if (!isGoogleUser && !firebaseUser.emailVerified) {
-            setUser({ id: firebaseUser.uid, email: firebaseUser.email, emailVerified: false });
-            setIsAuthenticated(false);
-            setIsEmailVerified(false);
-            setIsLoadingAuth(false);
-            return;
-          }
-          await loadUser(firebaseUser);
-        } else {
-          setUser(null);
+      if (firebaseUser) {
+        const isGoogleUser = firebaseUser.providerData?.some(
+          p => p.providerId === 'google.com'
+        );
+        if (!isGoogleUser && !firebaseUser.emailVerified) {
+          setUser({ id: firebaseUser.uid, email: firebaseUser.email, emailVerified: false });
           setIsAuthenticated(false);
           setIsEmailVerified(false);
           setIsLoadingAuth(false);
+          return;
         }
-      });
-    }
-
-    init();
+        await loadUser(firebaseUser);
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
+        setIsEmailVerified(false);
+        setIsLoadingAuth(false);
+      }
+    });
     return () => unsubscribe();
   }, []);
 

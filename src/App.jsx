@@ -107,6 +107,7 @@ const VerifyEmailScreen = () => {
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isEmailVerified, isLoadingAuth } = useAuth();
+  // Always show spinner while auth is loading — never redirect during this time
   if (isLoadingAuth) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-slate-950">
@@ -114,8 +115,12 @@ const ProtectedRoute = ({ children }) => {
       </div>
     );
   }
-  if (!isAuthenticated && !isEmailVerified) return <Navigate to="/login" replace />;
-  if (!isEmailVerified) return <VerifyEmailScreen />;
+  // Not loading, not authenticated → go to login
+  if (!isAuthenticated) {
+    // But if emailVerified is false it means they're signed in but unverified
+    if (isEmailVerified === false) return <VerifyEmailScreen />;
+    return <Navigate to="/login" replace />;
+  }
   return children;
 };
 
