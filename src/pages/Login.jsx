@@ -87,7 +87,10 @@ export default function LoginPage() {
     setError('');
     try {
       await authHelpers.signUp(email, password);
-      setScreen(SCREEN.VERIFY_EMAIL);
+      // After signUp, onAuthStateChanged fires → AuthContext sets isAuthenticated=true,
+      // isEmailVerified=false → App.jsx ProtectedRoute shows VerifyEmailScreen automatically.
+      // We just stop the spinner — no need to change screen here.
+      setLoading(false);
     } catch (err) {
       setError(friendlyError(err));
       setLoading(false);
