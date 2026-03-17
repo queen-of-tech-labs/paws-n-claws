@@ -11,45 +11,68 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
+  const [needsEmail, setNeedsEmail] = useState(false);
+  const [pendingUrl, setPendingUrl] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Handle magic link callback — works in both browser and Android deep link
-    // On Android, Capacitor loads the app and the magic link URL is in window.location
-    // We check both the full href and the hash portion for the oobCode parameter
     const fullUrl = window.location.href;
-    const hashUrl = window.location.hash
-      ? new URL('https://paws-n-claws.vercel.app/' + window.location.hash.replace('#/', ''))
-      : null;
+    let urlToCheck = null;
 
-    const urlToCheck = isSignInWithEmailLink(fbAuth, fullUrl)
-      ? fullUrl
-      : hashUrl && isSignInWithEmailLink(fbAuth, hashUrl.href)
-      ? hashUrl.href
-      : null;
+    if (isSignInWithEmailLink(fbAuth, fullUrl)) {
+      urlToCheck = fullUrl;
+    } else if (window.location.hash) {
+      try {
+        const hashPath = window.location.hash.replace('#/', '');
+        const reconstructed = 'https://paws-n-claws.vercel.app/' + hashPath;
+        if (isSignInWithEmailLink(fbAuth, reconstructed)) {
+          urlToCheck = reconstructed;
+        }
+      } catch (_) {}
+    }
 
-    if (urlToCheck) {
-      let emailForSignIn = window.localStorage.getItem('emailForSignIn');
-      if (!emailForSignIn) emailForSignIn = window.prompt('Please provide your email for confirmation');
-      if (!emailForSignIn) return;
-      setLoading(true);
-      signInWithEmailLink(fbAuth, emailForSignIn, urlToCheck)
-        .then(() => {
-          window.localStorage.removeItem('emailForSignIn');
-          // App.jsx will detect isAuthenticated=true and redirect away from /login automatically
-        })
-        .catch((err) => { setError(err.message); setLoading(false); });
+    if (!urlToCheck) return;
+
+    const savedEmail =
+      window.localStorage.getItem('emailForSignIn') ||
+      window.sessionStorage.getItem('emailForSignIn');
+
+    if (savedEmail) {
+      completeSignIn(savedEmail, urlToCheck);
+    } else {
+      setNeedsEmail(true);
+      setPendingUrl(urlToCheck);
+      setLoading(false);
     }
   }, []);
+
+  const completeSignIn = (emailAddr, url) => {
+    setLoading(true);
+    setError('');
+    signInWithEmailLink(fbAuth, emailAddr, url)
+      .then(() => {
+        window.localStorage.removeItem('emailForSignIn');
+        window.sessionStorage.removeItem('emailForSignIn');
+      })
+      .catch((err) => {
+        setError('Sign-in failed: ' + err.message);
+        setLoading(false);
+        setNeedsEmail(false);
+        setPendingUrl(null);
+      });
+  };
+
+  const handleConfirmEmail = (e) => {
+    e.preventDefault();
+    if (!email || !pendingUrl) return;
+    completeSignIn(email, pendingUrl);
+  };
 
   const handleGoogle = async () => {
     setLoading(true);
     setError('');
     try {
       await authHelpers.redirectToLogin();
-      // AuthContext onAuthStateChanged fires → isAuthenticated=true
-      // App.jsx sees isAuthenticated=true on /login → redirects to /dashboard
-      // Dashboard checks pendingAction → redirects to /account if upgrade
     } catch (err) {
       setError(err.message);
       setLoading(false);
@@ -62,13 +85,68 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     try {
-      await authHelpers.sendMagicLink(email, `https://paws-n-claws.vercel.app/#/dashboard`);
+      window.localStorage.setItem('emailForSignIn', email);
+      window.sessionStorage.setItem('emailForSignIn', email);
+      await authHelpers.sendMagicLink(email, `https://paws-n-claws.vercel.app/#/login`);
       setSent(true);
     } catch (err) {
       setError(err.message);
     }
     setLoading(false);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+            <PawPrint className="w-7 h-7 text-white" />
+          </div>
+          <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
+          <p className="text-slate-400 text-sm">Signing you in…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (needsEmail) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
+        <div className="w-full max-w-md">
+          <div className="flex flex-col items-center mb-8">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center mb-4">
+              <PawPrint className="w-7 h-7 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-white">Paws & Claws</h1>
+            <p className="text-slate-400 text-sm mt-1">Confirm your email to continue</p>
+          </div>
+          <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8">
+            <p className="text-slate-400 text-sm mb-4">
+              It looks like you opened this link on a different device. Please enter your email address to finish signing in.
+            </p>
+            <form onSubmit={handleConfirmEmail} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Email address</label>
+                <Input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
+                  required
+                />
+              </div>
+              {error && <p className="text-sm text-red-400">{error}</p>}
+              <Button type="submit" disabled={!email} className="w-full bg-blue-600 hover:bg-blue-700">
+                <Mail className="w-4 h-4 mr-2" />
+                Complete Sign In
+              </Button>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
@@ -88,7 +166,7 @@ export default function LoginPage() {
               </div>
               <h2 className="text-lg font-semibold text-white mb-2">Check your email</h2>
               <p className="text-slate-400 text-sm">
-                We sent a magic link to <strong className="text-white">{email}</strong>. Click it to sign in.
+                We sent a magic link to <strong className="text-white">{email}</strong>. Tap it to sign in instantly.
               </p>
               <button onClick={() => setSent(false)} className="mt-4 text-sm text-blue-400 hover:text-blue-300">
                 Use a different email
