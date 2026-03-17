@@ -96,13 +96,13 @@ export const auth = {
 
   /** Send magic link email */
   async sendMagicLink(email, redirectTo) {
-    // Always use the Vercel URL as the redirect — Firebase requires a whitelisted domain.
-    // On Android the App Link intent-filter will intercept this URL and open the app.
-    // On web it opens the browser normally and Login.jsx handles the sign-in.
+    // Firebase requires a whitelisted https URL as the redirect.
+    // We embed the email in the continueUrl so the app can read it
+    // without needing localStorage (which is lost when the link opens the app).
+    const continueUrl = 'https://paws-n-claws.vercel.app/#/login?email=' + encodeURIComponent(email);
     const actionCodeSettings = {
-      url: 'https://paws-n-claws.vercel.app/#/login',
+      url: continueUrl,
       handleCodeInApp: true,
-      // Android package info tells Firebase to try to open the app directly
       android: {
         packageName: 'paws.claws.pet.tracker',
         installIfNotAvailable: false,
@@ -110,7 +110,9 @@ export const auth = {
       },
     };
     await sendSignInLinkToEmail(fbAuth, email, actionCodeSettings);
+    // Save in both storages as backup — may survive deep link on some devices
     window.localStorage.setItem('emailForSignIn', email);
+    window.sessionStorage.setItem('emailForSignIn', email);
   },
 
   /** Sign out */

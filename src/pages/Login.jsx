@@ -6,6 +6,29 @@ import { PawPrint, Mail, Loader2, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+// Extract email from a URL string's query params
+function extractEmailFromUrl(urlString) {
+  try {
+    const url = new URL(urlString);
+    return url.searchParams.get('email');
+  } catch (_) {
+    return null;
+  }
+}
+
+// Extract email from hash portion e.g. /#/login?email=foo@bar.com
+function extractEmailFromHash(hash) {
+  try {
+    const hashContent = hash.replace(/^#\/?/, '');
+    const queryStart = hashContent.indexOf('?');
+    if (queryStart === -1) return null;
+    const params = new URLSearchParams(hashContent.substring(queryStart + 1));
+    return params.get('email');
+  } catch (_) {
+    return null;
+  }
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,9 +42,11 @@ export default function LoginPage() {
     const fullUrl = window.location.href;
     let urlToCheck = null;
 
+    // Check if the current URL is a Firebase magic link
     if (isSignInWithEmailLink(fbAuth, fullUrl)) {
       urlToCheck = fullUrl;
     } else if (window.location.hash) {
+      // HashRouter puts the real path in the hash — reconstruct and check
       try {
         const hashPath = window.location.hash.replace('#/', '');
         const reconstructed = 'https://paws-n-claws.vercel.app/' + hashPath;
@@ -31,18 +56,28 @@ export default function LoginPage() {
       } catch (_) {}
     }
 
-    if (!urlToCheck) return;
+    if (!urlToCheck) return; // Not a magic link — show normal login form
+
+    // Try every possible source for the email, in order of reliability:
+    // 1. Embedded in the URL itself (most reliable — survives app restarts)
+    // 2. localStorage (set when the link was sent on this device)
+    // 3. sessionStorage (backup)
+    const emailFromUrl =
+      extractEmailFromUrl(urlToCheck) ||
+      extractEmailFromUrl(fullUrl) ||
+      extractEmailFromHash(window.location.hash);
 
     const savedEmail =
+      emailFromUrl ||
       window.localStorage.getItem('emailForSignIn') ||
       window.sessionStorage.getItem('emailForSignIn');
 
     if (savedEmail) {
       completeSignIn(savedEmail, urlToCheck);
     } else {
+      // Last resort — show a clean input form (no ugly browser prompt)
       setNeedsEmail(true);
       setPendingUrl(urlToCheck);
-      setLoading(false);
     }
   }, []);
 
@@ -53,6 +88,7 @@ export default function LoginPage() {
       .then(() => {
         window.localStorage.removeItem('emailForSignIn');
         window.sessionStorage.removeItem('emailForSignIn');
+        // AuthContext picks up the signed-in user → App.jsx redirects to /dashboard
       })
       .catch((err) => {
         setError('Sign-in failed: ' + err.message);
@@ -87,7 +123,7 @@ export default function LoginPage() {
     try {
       window.localStorage.setItem('emailForSignIn', email);
       window.sessionStorage.setItem('emailForSignIn', email);
-      await authHelpers.sendMagicLink(email, `https://paws-n-claws.vercel.app/#/login`);
+      await authHelpers.sendMagicLink(email);
       setSent(true);
     } catch (err) {
       setError(err.message);
@@ -95,6 +131,7 @@ export default function LoginPage() {
     setLoading(false);
   };
 
+  // ── Signing in automatically ───────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
@@ -109,6 +146,7 @@ export default function LoginPage() {
     );
   }
 
+  // ── Opened on a different device — need email confirmation ────────────────
   if (needsEmail) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
@@ -122,7 +160,7 @@ export default function LoginPage() {
           </div>
           <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8">
             <p className="text-slate-400 text-sm mb-4">
-              It looks like you opened this link on a different device. Please enter your email address to finish signing in.
+              It looks like you opened this link on a different device. Please enter your email to finish signing in.
             </p>
             <form onSubmit={handleConfirmEmail} className="space-y-4">
               <div>
@@ -148,6 +186,7 @@ export default function LoginPage() {
     );
   }
 
+  // ── Normal login form ─────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
       <div className="w-full max-w-md">
@@ -166,7 +205,7 @@ export default function LoginPage() {
               </div>
               <h2 className="text-lg font-semibold text-white mb-2">Check your email</h2>
               <p className="text-slate-400 text-sm">
-                We sent a magic link to <strong className="text-white">{email}</strong>. Tap it to sign in instantly.
+                We sent a magic link to <strong className="text-white">{email}</strong>. Tap it to sign in instantly — no password needed.
               </p>
               <button onClick={() => setSent(false)} className="mt-4 text-sm text-blue-400 hover:text-blue-300">
                 Use a different email
@@ -182,7 +221,7 @@ export default function LoginPage() {
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Continue with Google'}
+                Continue with Google
               </button>
               <div className="flex items-center gap-3 mb-6">
                 <div className="flex-1 h-px bg-slate-800" />
