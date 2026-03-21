@@ -1,5 +1,7 @@
 // Vercel serverless function — serves auth-callback page with Firebase config injected
-// This keeps Firebase config values in Vercel env vars (safe) rather than hardcoded in HTML
+// Handles TWO types of Firebase action links:
+//   1. Email ADDRESS VERIFICATION  (mode=verifyEmail) — from signUp flow
+//   2. Magic link SIGN-IN          (mode=signIn)       — from passwordless sign-in
 export default function handler(req, res) {
   const config = {
     apiKey:            process.env.VITE_FIREBASE_API_KEY,
@@ -14,14 +16,14 @@ export default function handler(req, res) {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Signing you in — Paws & Claws</title>
+  <title>Paws & Claws</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       background: #0f172a; color: #fff;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       display: flex; align-items: center; justify-content: center;
-      min-height: 100vh; flex-direction: column; gap: 16px;
+      min-height: 100vh; flex-direction: column; gap: 16px; padding: 24px;
     }
     .spinner {
       width: 40px; height: 40px;
@@ -29,28 +31,39 @@ export default function handler(req, res) {
       border-radius: 50%; animation: spin 0.8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .logo { font-size: 32px; margin-bottom: 4px; }
-    p { color: #94a3b8; font-size: 15px; }
+    .logo { font-size: 40px; margin-bottom: 4px; }
+    .title { font-size: 18px; font-weight: 600; color: #fff; }
+    p { color: #94a3b8; font-size: 15px; text-align: center; max-width: 300px; }
+    .success { color: #4ade80; font-size: 15px; text-align: center; }
     .error { color: #f87171; font-size: 14px; max-width: 300px; text-align: center; }
     .btn {
-      margin-top: 12px; padding: 12px 24px;
+      margin-top: 8px; padding: 14px 28px;
       background: #3b82f6; color: white;
-      border: none; border-radius: 10px;
+      border: none; border-radius: 12px;
       font-size: 15px; font-weight: 600;
       cursor: pointer; display: none; text-decoration: none;
+      text-align: center;
     }
+    .btn:hover { background: #2563eb; }
   </style>
 </head>
 <body>
   <div class="logo">🐾</div>
   <div class="spinner" id="spinner"></div>
-  <p id="msg">Signing you in…</p>
+  <p class="title" id="title">Just a moment…</p>
+  <p id="msg"></p>
+  <p class="success" id="success" style="display:none"></p>
   <p class="error" id="error" style="display:none"></p>
-  <a class="btn" id="openBtn" href="pawsclaws://login">Open Paws & Claws App</a>
+  <a class="btn" id="openBtn" href="pawsclaws://login">Open Paws &amp; Claws App</a>
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-    import { getAuth, isSignInWithEmailLink, signInWithEmailLink } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+    import {
+      getAuth,
+      applyActionCode,
+      isSignInWithEmailLink,
+      signInWithEmailLink
+    } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
     const firebaseConfig = ${JSON.stringify(config)};
     firebaseConfig.authDomain = 'paws-n-claws.vercel.app';
@@ -58,59 +71,102 @@ export default function handler(req, res) {
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
 
+    // Firebase puts mode, oobCode in the query string of the action URL
     function getParam(name) {
-      const url = new URL(window.location.href);
-      return url.searchParams.get(name);
+      return new URL(window.location.href).searchParams.get(name);
     }
 
-    function showError(msg) {
+    function hideSpinner() {
       document.getElementById('spinner').style.display = 'none';
-      document.getElementById('msg').style.display = 'none';
-      document.getElementById('error').style.display = 'block';
-      document.getElementById('error').textContent = msg;
+    }
+
+    function showSuccess(title, msg) {
+      hideSpinner();
+      document.getElementById('title').textContent = title;
+      document.getElementById('success').textContent = msg;
+      document.getElementById('success').style.display = 'block';
       document.getElementById('openBtn').style.display = 'inline-block';
     }
 
-    async function handleSignIn() {
-      const currentUrl = window.location.href;
+    function showError(msg) {
+      hideSpinner();
+      document.getElementById('title').textContent = 'Something went wrong';
+      document.getElementById('error').textContent = msg;
+      document.getElementById('error').style.display = 'block';
+      document.getElementById('openBtn').style.display = 'inline-block';
+    }
 
-      if (!isSignInWithEmailLink(auth, currentUrl)) {
-        showError('This link has expired or is invalid. Please request a new magic link from the app.');
+    async function handleAction() {
+      const mode    = getParam('mode');
+      const oobCode = getParam('oobCode');
+
+      // ── MODE: verifyEmail ────────────────────────────────────────────────
+      // Triggered when user clicks the email verification link after sign-up.
+      // applyActionCode marks the email verified in Firebase.
+      // The app's auto-poll (every 4s) detects this and logs the user in.
+      if (mode === 'verifyEmail') {
+        if (!oobCode) { showError('Invalid verification link — missing code.'); return; }
+        try {
+          document.getElementById('title').textContent = 'Verifying your email…';
+          await applyActionCode(auth, oobCode);
+          showSuccess(
+            '✓ Email verified!',
+            'Your email is confirmed. Tap below to open the app — you will be signed in automatically.'
+          );
+        } catch (err) {
+          console.error('verifyEmail error:', err);
+          if (err.code === 'auth/invalid-action-code') {
+            showError('This link has already been used or has expired. Please request a new verification email from the app.');
+          } else {
+            showError('Verification failed: ' + err.message);
+          }
+        }
         return;
       }
 
-      const email = getParam('email')
-        || localStorage.getItem('emailForSignIn')
-        || sessionStorage.getItem('emailForSignIn')
-        || window.prompt('Please enter your email to confirm sign-in:');
-
-      if (!email) { showError('Email is required to complete sign-in.'); return; }
-
-      try {
-        await signInWithEmailLink(auth, email, currentUrl);
-
-        // Store email so the app's Login.jsx can find it when it opens
-        localStorage.setItem('emailForSignIn', email);
-        localStorage.setItem('pendingAuthEmail', email);
-
-        document.getElementById('spinner').style.display = 'none';
-        document.getElementById('msg').textContent = '✓ Signed in! Opening the app…';
-
-        // Open the app via custom URI scheme
-        window.location.href = 'pawsclaws://login?email=' + encodeURIComponent(email);
-
-        // Fallback: redirect to web dashboard after 2.5s if app didn't open
+      // ── MODE: resetPassword ──────────────────────────────────────────────
+      if (mode === 'resetPassword') {
+        document.getElementById('title').textContent = 'Redirecting…';
+        window.location.href = 'pawsclaws://login?mode=resetPassword&oobCode=' + encodeURIComponent(oobCode || '');
         setTimeout(() => {
-          window.location.replace('https://paws-n-claws.vercel.app/#/dashboard');
-        }, 2500);
-
-      } catch (err) {
-        console.error(err);
-        showError('Sign-in failed: ' + err.message + '. Please try requesting a new link.');
+          showSuccess('Reset link received', 'Please open the app to complete your password reset.');
+        }, 1500);
+        return;
       }
+
+      // ── MODE: signIn (magic/passwordless link) ───────────────────────────
+      if (mode === 'signIn' || isSignInWithEmailLink(auth, window.location.href)) {
+        const email = getParam('email')
+          || localStorage.getItem('emailForSignIn')
+          || sessionStorage.getItem('emailForSignIn')
+          || window.prompt('Please enter your email address to confirm sign-in:');
+
+        if (!email) { showError('Email is required to complete sign-in.'); return; }
+
+        try {
+          document.getElementById('title').textContent = 'Signing you in…';
+          await signInWithEmailLink(auth, email, window.location.href);
+          localStorage.setItem('pendingAuthEmail', email);
+          localStorage.removeItem('emailForSignIn');
+
+          showSuccess('✓ Signed in!', 'Opening the app…');
+          window.location.href = 'pawsclaws://login?email=' + encodeURIComponent(email);
+
+          setTimeout(() => {
+            window.location.replace('https://paws-n-claws.vercel.app/#/dashboard');
+          }, 2500);
+        } catch (err) {
+          console.error('signIn error:', err);
+          showError('Sign-in failed: ' + err.message + '. Please request a new link from the app.');
+        }
+        return;
+      }
+
+      // ── Unknown mode ─────────────────────────────────────────────────────
+      showError('Unknown link type. Please go back to the app and try again.');
     }
 
-    handleSignIn();
+    handleAction();
   </script>
 </body>
 </html>`;
