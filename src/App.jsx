@@ -69,6 +69,21 @@ const VerifyEmailScreen = () => {
   const [checking, setChecking] = useState(false);
   const [notVerifiedYet, setNotVerifiedYet] = useState(false);
 
+  // Auto-poll every 4 seconds — detects when user clicks the link on
+  // a different device/browser tab without needing to tap the button.
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        await checkEmailVerified();
+        // If verified, AuthContext updates isEmailVerified → ProtectedRoute
+        // automatically unmounts this screen. No manual navigation needed.
+      } catch (e) {
+        // Silent — polling errors are not user-facing
+      }
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [checkEmailVerified]);
+
   const handleResend = async () => {
     try {
       await resendVerificationEmail();
@@ -83,17 +98,11 @@ const VerifyEmailScreen = () => {
     setChecking(true);
     setNotVerifiedYet(false);
     try {
-      // checkEmailVerified reloads the Firebase token AND manually calls
-      // loadUser if verified — fixing the bug where reload() alone didn't
-      // trigger onAuthStateChanged, leaving the screen frozen.
       const verified = await checkEmailVerified();
       if (!verified) {
-        // Email not yet verified — show helpful message
         setNotVerifiedYet(true);
         setTimeout(() => setNotVerifiedYet(false), 4000);
       }
-      // If verified, AuthContext sets isEmailVerified=true and
-      // ProtectedRoute automatically renders the app — no nav needed here.
     } catch (e) {
       console.warn('Check verified error:', e);
     }
