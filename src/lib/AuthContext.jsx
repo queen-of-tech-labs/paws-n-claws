@@ -125,12 +125,31 @@ export const AuthProvider = ({ children }) => {
     if (fbAuth.currentUser) await sendEmailVerification(fbAuth.currentUser);
   };
 
+  // Called when user taps "I've verified my email" button.
+  // reload() refreshes the Firebase token locally but does NOT trigger
+  // onAuthStateChanged — so we manually check and call loadUser ourselves.
+  const checkEmailVerified = async () => {
+    const currentUser = fbAuth.currentUser;
+    if (!currentUser) return false;
+    try {
+      await currentUser.reload();
+      const refreshed = fbAuth.currentUser; // re-read after reload
+      if (refreshed?.emailVerified) {
+        await loadUser(refreshed);
+        return true;
+      }
+    } catch (e) {
+      console.warn('checkEmailVerified error:', e);
+    }
+    return false;
+  };
+
   return (
     <AuthContext.Provider value={{
       user, isAuthenticated, isEmailVerified, isLoadingAuth,
       isLoadingPublicSettings: false,
       authError, appPublicSettings: null,
-      logout, navigateToLogin, resendVerificationEmail,
+      logout, navigateToLogin, resendVerificationEmail, checkEmailVerified,
     }}>
       {children}
     </AuthContext.Provider>

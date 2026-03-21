@@ -64,9 +64,10 @@ const PageNotFound = () => (
 // Shown when a user has signed up with email/password but hasn't verified yet.
 // AuthContext sets isAuthenticated=true, isEmailVerified=false in this case.
 const VerifyEmailScreen = () => {
-  const { user, logout, resendVerificationEmail } = useAuth();
+  const { user, logout, resendVerificationEmail, checkEmailVerified } = useAuth();
   const [sent, setSent] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [notVerifiedYet, setNotVerifiedYet] = useState(false);
 
   const handleResend = async () => {
     try {
@@ -80,14 +81,21 @@ const VerifyEmailScreen = () => {
 
   const handleCheckVerified = async () => {
     setChecking(true);
+    setNotVerifiedYet(false);
     try {
-      // Reload Firebase user — if they verified, emailVerified becomes true.
-      // This triggers onAuthStateChanged which updates isEmailVerified in AuthContext,
-      // and the ProtectedRoute will then render the actual page.
-      const { fbAuth } = await import('@/api/firebaseClient');
-      await fbAuth.currentUser?.reload();
+      // checkEmailVerified reloads the Firebase token AND manually calls
+      // loadUser if verified — fixing the bug where reload() alone didn't
+      // trigger onAuthStateChanged, leaving the screen frozen.
+      const verified = await checkEmailVerified();
+      if (!verified) {
+        // Email not yet verified — show helpful message
+        setNotVerifiedYet(true);
+        setTimeout(() => setNotVerifiedYet(false), 4000);
+      }
+      // If verified, AuthContext sets isEmailVerified=true and
+      // ProtectedRoute automatically renders the app — no nav needed here.
     } catch (e) {
-      console.warn('Reload error:', e);
+      console.warn('Check verified error:', e);
     }
     setChecking(false);
   };
@@ -104,6 +112,11 @@ const VerifyEmailScreen = () => {
         <p className="text-slate-400 text-sm mb-8">
           Click the link in that email, then come back and tap the button below.
         </p>
+        {notVerifiedYet && (
+          <p className="text-amber-400 text-sm mb-4">
+            Email not verified yet — please click the link in your inbox first.
+          </p>
+        )}
         <div className="space-y-3">
           <button
             onClick={handleCheckVerified}
