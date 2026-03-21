@@ -54,7 +54,7 @@ export default function handler(req, res) {
   <p id="msg"></p>
   <p class="success" id="success" style="display:none"></p>
   <p class="error" id="error" style="display:none"></p>
-  <a class="btn" id="openBtn" href="pawsclaws://login">Open Paws &amp; Claws App</a>
+  <a class="btn" id="openBtn" href="https://paws-n-claws.vercel.app/#/dashboard">Open Paws &amp; Claws App</a>
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -80,12 +80,27 @@ export default function handler(req, res) {
       document.getElementById('spinner').style.display = 'none';
     }
 
-    function showSuccess(title, msg) {
+    function showSuccess(title, msg, autoRedirect) {
       hideSpinner();
       document.getElementById('title').textContent = title;
       document.getElementById('success').textContent = msg;
       document.getElementById('success').style.display = 'block';
       document.getElementById('openBtn').style.display = 'inline-block';
+      // Auto-redirect after 3s so users don't have to tap anything
+      if (autoRedirect) {
+        let count = 3;
+        document.getElementById('msg').textContent = 'Redirecting in ' + count + '…';
+        document.getElementById('msg').style.color = '#64748b';
+        const timer = setInterval(() => {
+          count--;
+          if (count <= 0) {
+            clearInterval(timer);
+            window.location.href = 'https://paws-n-claws.vercel.app/#/dashboard';
+          } else {
+            document.getElementById('msg').textContent = 'Redirecting in ' + count + '…';
+          }
+        }, 1000);
+      }
     }
 
     function showError(msg) {
@@ -111,7 +126,8 @@ export default function handler(req, res) {
           await applyActionCode(auth, oobCode);
           showSuccess(
             '✓ Email verified!',
-            'Your email is confirmed. Tap below to open the app — you will be signed in automatically.'
+            'Your email is confirmed. Opening the app automatically…',
+            true
           );
         } catch (err) {
           console.error('verifyEmail error:', err);
@@ -127,10 +143,11 @@ export default function handler(req, res) {
       // ── MODE: resetPassword ──────────────────────────────────────────────
       if (mode === 'resetPassword') {
         document.getElementById('title').textContent = 'Redirecting…';
-        window.location.href = 'pawsclaws://login?mode=resetPassword&oobCode=' + encodeURIComponent(oobCode || '');
+        // Redirect to web app with reset params — app's deep link handler picks it up
         setTimeout(() => {
-          showSuccess('Reset link received', 'Please open the app to complete your password reset.');
-        }, 1500);
+          window.location.href = 'https://paws-n-claws.vercel.app/#/login?mode=resetPassword&oobCode=' + encodeURIComponent(oobCode || '');
+        }, 500);
+        showSuccess('Password Reset', 'Opening the app to complete your reset…', false);
         return;
       }
 
