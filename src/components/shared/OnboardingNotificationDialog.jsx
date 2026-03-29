@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { markNotifSetupDone } from '@/lib/AuthContext';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription
 } from '@/components/ui/dialog';
@@ -6,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Bell, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const isNative = () => !!(window.Capacitor?.isNativePlatform?.());
-const NOTIF_SETUP_KEY = 'paws_notif_setup_done';
 
 export default function OnboardingNotificationDialog({ open, onOpenChange, userId }) {
   const [loading, setLoading] = useState(false);
@@ -92,9 +92,10 @@ export default function OnboardingNotificationDialog({ open, onOpenChange, userI
         // Note: web login() removed — causes 409 conflicts on web SDK v16
       }
 
-      // Mark as set up in localStorage so we never ask again
-      localStorage.setItem(NOTIF_SETUP_KEY + '_' + userId, 'true');
-      console.log('Notifications enabled and saved to localStorage');
+      // Mark as done in BOTH localStorage AND Firestore so we never ask again
+      // (even after reinstall or localStorage clear)
+      await markNotifSetupDone(userId);
+      console.log('Notifications enabled and persisted to Firestore');
 
       setSuccess(true);
       setTimeout(() => onOpenChange(false), 1500);
@@ -107,10 +108,10 @@ export default function OnboardingNotificationDialog({ open, onOpenChange, userI
     }
   };
 
-  const handleSkip = () => {
-    // Also save skip so we don't ask every time
+  const handleSkip = async () => {
+    // Persist the skip to Firestore too, so we don't ask again after reinstall
     if (userId) {
-      localStorage.setItem(NOTIF_SETUP_KEY + '_' + userId, 'skipped');
+      await markNotifSetupDone(userId);
     }
     onOpenChange(false);
   };

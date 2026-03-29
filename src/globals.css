@@ -9,3 +9,21 @@ body::-webkit-scrollbar,
 *::-webkit-scrollbar {
   display: none !important;
 }
+/* ─── Android EdgeToEdge safe-area fixes ───────────────────────────────────
+ * When EdgeToEdge is enabled in capacitor.config.json, the app draws behind
+ * the phone's status bar. We use CSS env(safe-area-inset-top) to push our
+ * content down so it doesn't collide with the clock / notification icons.
+ *
+ * Capacitor automatically sets the viewport-fit=cover meta tag which enables
+ * env() support. These classes are applied to the mobile header and sidebar.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/* Mobile top header — adds status bar height + original 12px vertical padding */
+.safe-area-header {
+  padding-top: max(12px, calc(env(safe-area-inset-top) + 12px));
+}
+
+/* Sidebar logo area — adds status bar height + original 24px top padding */
+.safe-area-sidebar-top {
+  padding-top: max(24px, calc(env(safe-area-inset-top) + 24px));
+}

@@ -203,7 +203,7 @@ export default function Layout({ children, currentPageName }) {
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         flex flex-col
       `}>
-        <div className="p-6 border-b border-slate-800">
+        <div className="p-6 border-b border-slate-800 safe-area-sidebar-top">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center">
               <img src="/favicon.png" alt="Paws & Claws" className="w-10 h-10 object-contain" />
@@ -355,7 +355,7 @@ export default function Layout({ children, currentPageName }) {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-h-screen overflow-x-hidden">
         {/* Top bar - mobile */}
-        <header className="lg:hidden sticky top-0 z-30 bg-slate-900/80 backdrop-blur-lg border-b border-slate-800 px-4 py-3">
+        <header className="lg:hidden sticky top-0 z-30 bg-slate-900/80 backdrop-blur-lg border-b border-slate-800 px-4 safe-area-header">
           <div className="flex items-center justify-between">
             <Button
               variant="ghost"

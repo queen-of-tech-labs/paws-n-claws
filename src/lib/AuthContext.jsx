@@ -1,12 +1,49 @@
 import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { fbAuth, db, auth as authHelpers } from '@/api/firebaseClient';
 import { onAuthStateChanged, sendEmailVerification } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { initializeOneSignal } from '@/components/services/oneSignalService';
 import { queryClientInstance } from '@/lib/query-client';
 
 const AuthContext = createContext();
 const NOTIF_SETUP_KEY = 'paws_notif_setup_done';
+
+/**
+ * Checks whether the user has already completed (or skipped) the notification
+ * setup prompt. We check BOTH localStorage (fast) AND Firestore (reliable across
+ * devices / app reinstalls). Either one being set counts as "already done".
+ */
+const hasCompletedNotifSetup = async (uid) => {
+  // 1. Fast local check first
+  const local = localStorage.getItem(NOTIF_SETUP_KEY + '_' + uid);
+  if (local) return true;
+
+  // 2. Firestore fallback — survives reinstalls and localStorage clears
+  try {
+    const profileSnap = await getDoc(doc(db, 'profiles', uid));
+    if (profileSnap.exists() && profileSnap.data()?.notif_setup_done) {
+      // Mirror back to localStorage so future checks are instant
+      localStorage.setItem(NOTIF_SETUP_KEY + '_' + uid, 'true');
+      return true;
+    }
+  } catch (e) {
+    console.warn('Firestore notif check failed:', e);
+  }
+  return false;
+};
+
+/**
+ * Marks notification setup as complete in BOTH localStorage and Firestore.
+ * Called after the user enables OR skips the prompt.
+ */
+export const markNotifSetupDone = async (uid) => {
+  localStorage.setItem(NOTIF_SETUP_KEY + '_' + uid, 'true');
+  try {
+    await updateDoc(doc(db, 'profiles', uid), { notif_setup_done: true });
+  } catch (e) {
+    console.warn('Could not persist notif_setup_done to Firestore:', e);
+  }
+};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -101,14 +138,19 @@ export const AuthProvider = ({ children }) => {
   const initializeAndPrompt = async (fullUser) => {
     try {
       await initializeOneSignal(fullUser.id);
-      const alreadySetup = localStorage.getItem(NOTIF_SETUP_KEY + '_' + fullUser.id);
+
+      // Check both localStorage AND Firestore — survives reinstalls & localStorage clears
+      const alreadySetup = await hasCompletedNotifSetup(fullUser.id);
+
       if (!alreadySetup) {
+        // First time ever — show the prompt after a short delay
         setTimeout(() => {
           window.dispatchEvent(new CustomEvent('show-notification-prompt', {
             detail: { userId: fullUser.id }
           }));
         }, 2000);
       } else {
+        // Already set up — silently re-login with OneSignal on native
         const isNative = !!(window.Capacitor?.isNativePlatform?.());
         if (isNative) {
           window.plugins?.OneSignal?.login(fullUser.id);
