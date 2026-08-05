@@ -2,6 +2,8 @@ workflows:
   ios-release:
     name: Paws & Claws iOS Release
     max_build_duration: 60
+    integrations:
+      app_store_connect: Royalty Tech Labs API Key
     environment:
       ios_signing:
         distribution_type: app_store
@@ -31,3 +33,7 @@ workflows:
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
