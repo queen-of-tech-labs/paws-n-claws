@@ -24,6 +24,7 @@ workflows:
         script: |
           xcodebuild -resolvePackageDependencies \
             -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
             -derivedDataPath ios/App/build
       - name: Build iOS
         script: |
