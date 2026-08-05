@@ -20,6 +20,11 @@ workflows:
         script: npm run build
       - name: Sync Capacitor
         script: npx cap sync ios
+      - name: Resolve SPM packages
+        script: |
+          xcodebuild -resolvePackageDependencies \
+            -project "$XCODE_PROJECT" \
+            -derivedDataPath ios/App/build
       - name: Build iOS
         script: |
           xcode-project use-profiles
