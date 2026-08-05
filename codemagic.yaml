@@ -20,10 +20,7 @@ workflows:
         script: npm run build
       - name: Sync Capacitor
         script: npx cap sync ios
-      - name: Install CocoaPods
-        script: |
-          cd ios/App
-          pod install
+      
       - name: Fetch signing files
         script: |
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
