@@ -20,13 +20,13 @@ workflows:
         script: npm run build
       - name: Sync Capacitor
         script: npx cap sync ios
-     
       - name: Build iOS
         script: |
           xcode-project use-profiles
           xcode-project build-ipa \
             --project "$XCODE_PROJECT" \
-            --scheme "$XCODE_SCHEME"
+            --scheme "$XCODE_SCHEME" \
+            --disable-xcpretty
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
