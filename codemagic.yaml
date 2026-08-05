@@ -10,7 +10,7 @@ workflows:
         bundle_identifier: com.royaltytechlabs.pawsclaws
       vars:
         BUNDLE_ID: "com.royaltytechlabs.pawsclaws"
-        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
+        XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
       node: v22
     scripts:
@@ -25,7 +25,7 @@ workflows:
         script: |
           xcode-project use-profiles
           xcode-project build-ipa \
-            --workspace "$XCODE_WORKSPACE" \
+            --project "$XCODE_PROJECT" \
             --scheme "$XCODE_SCHEME"
     artifacts:
       - build/ios/ipa/*.ipa
