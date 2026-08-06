@@ -12,6 +12,8 @@ workflows:
         BUNDLE_ID: "com.royaltytechlabs.pawsclaws"
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
+        APP_STORE_APPLE_ID: "6798302462"
+        ONESIGNAL_DISABLE_LOCATION: "true"
       node: v22
     scripts:
       - name: Install dependencies
@@ -26,6 +28,13 @@ workflows:
             -project "$XCODE_PROJECT" \
             -scheme "$XCODE_SCHEME" \
             -derivedDataPath ios/App/build
+      - name: Increment build number
+        script: |
+          #!/bin/sh
+          set -e
+          cd ios/App
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID")
+          agvtool new-version -all $(($LATEST_BUILD_NUMBER + 1))
       - name: Build iOS
         script: |
           xcode-project use-profiles
