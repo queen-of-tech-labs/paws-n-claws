@@ -20,5 +20,8 @@
     "allowMixedContent": true,
     "captureInput": true,
     "webContentsDebuggingEnabled": true
+  },
+  "ios": {
+    "handleApplicationNotifications": false
   }
 }

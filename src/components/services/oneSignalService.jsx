@@ -1,9 +1,11 @@
 /**
  * OneSignal Push Notification Service
  * App ID: 83fd3bf4-a60e-4651-8a59-6141189b6831
- * Native Android via onesignal-cordova-plugin
+ * Native iOS/Android via @onesignal/capacitor-plugin
  * Web fallback via OneSignal Web SDK
  */
+
+import OneSignal from '@onesignal/capacitor-plugin';
 
 export const ONESIGNAL_APP_ID = '83fd3bf4-a60e-4651-8a59-6141189b6831';
 
@@ -18,19 +20,10 @@ const isNative = () => !!(window.Capacitor?.isNativePlatform?.());
 
 // Fast synchronous check — never blocks, never hangs
 function hasNotificationPermission() {
-  // On native, always return true — Android controls permission at OS level
-  // If user denied, notifications simply won't deliver (no harm done)
+  // On native, always return true — the OS controls permission at the system level.
+  // If the user denied it, notifications simply won't deliver (no harm done).
   if (isNative()) return true;
   try {
-    if (isNative()) {
-      const os = window.plugins?.OneSignal;
-      if (!os) return true; // assume ok if plugin not ready yet
-      if (typeof os.Notifications?.hasPermission === 'function') {
-        return os.Notifications.hasPermission();
-      }
-      // Can't check — assume granted so notifications aren't silently skipped
-      return true;
-    }
     return Notification?.permission === 'granted';
   } catch {
     return true; // fail open so notifications aren't silently dropped
@@ -50,34 +43,24 @@ export async function initializeOneSignal(userId = null) {
   initPromise = (async () => {
     try {
       if (isNative()) {
-        // ── NATIVE ANDROID ──
-        await new Promise((resolve) => {
-          const check = setInterval(() => {
-            if (window.plugins?.OneSignal) {
-              clearInterval(check);
-              resolve();
-            }
-          }, 100);
-          setTimeout(() => { clearInterval(check); resolve(); }, 5000);
-        });
+        // ── NATIVE iOS / ANDROID ──
+        // With the ES import there's no "wait for window.plugins to appear"
+        // polling needed — the module is available as soon as it's imported.
+        await OneSignal.initialize({ appId: ONESIGNAL_APP_ID });
 
-        if (!window.plugins?.OneSignal) throw new Error('OneSignal native plugin not found');
-
-        window.plugins.OneSignal.initialize(ONESIGNAL_APP_ID);
-
-        window.plugins.OneSignal.Notifications.addEventListener('click', (event) => {
+        OneSignal.Notifications.addEventListener('click', (event) => {
           console.log('OneSignal notification clicked:', event);
         });
 
         if (userId) {
-          try { window.plugins.OneSignal.login(userId); } catch (e) {
+          try { await OneSignal.login(userId); } catch (e) {
             console.warn('OneSignal native login warning:', e);
           }
         }
 
         console.log('OneSignal native initialized');
       } else {
-        // ── WEB BROWSER FALLBACK ──
+        // ── WEB BROWSER FALLBACK ── (unchanged)
         if (!window.OneSignal) {
           await new Promise((resolve, reject) => {
             const script = document.createElement('script');
@@ -134,11 +117,8 @@ export async function initializeOneSignal(userId = null) {
 export async function getPermissionStatus() {
   try {
     if (isNative()) {
-      return new Promise((resolve) => {
-        window.plugins?.OneSignal?.Notifications?.getPermissionAsync((permission) => {
-          resolve(permission ? 'granted' : 'default');
-        });
-      });
+      const granted = OneSignal.Notifications.permission;
+      return granted ? 'granted' : 'default';
     }
     if (!window.OneSignal) return Notification?.permission ?? 'default';
     return window.OneSignal.Notifications.permission ? 'granted' : 'default';
@@ -150,14 +130,11 @@ export async function getPermissionStatus() {
 export async function requestPermission(userId) {
   try {
     if (isNative()) {
-      return new Promise((resolve) => {
-        window.plugins?.OneSignal?.Notifications?.requestPermission(true, (accepted) => {
-          if (accepted && userId) {
-            try { window.plugins.OneSignal.login(userId); } catch {}
-          }
-          resolve(accepted);
-        });
-      });
+      const accepted = await OneSignal.Notifications.requestPermission(true);
+      if (accepted && userId) {
+        try { await OneSignal.login(userId); } catch {}
+      }
+      return accepted === true;
     }
     if (!window.OneSignal) return false;
     const granted = await window.OneSignal.Notifications.requestPermission();
@@ -175,11 +152,8 @@ export async function requestPermission(userId) {
 export async function getSubscriptionId() {
   try {
     if (isNative()) {
-      return new Promise((resolve) => {
-        window.plugins?.OneSignal?.User?.pushSubscription?.getIdAsync?.((id) => {
-          resolve(id ?? null);
-        }) ?? resolve(null);
-      });
+      // Synchronous getter in the native Capacitor plugin — no callback needed.
+      return OneSignal.User.pushSubscription.id ?? null;
     }
     return window.OneSignal?.User?.pushSubscription?.id ?? null;
   } catch {
@@ -204,7 +178,7 @@ export async function setUserTags({ userId, email, isPremium, role }) {
       role: role ?? 'user',
     };
     if (isNative()) {
-      window.plugins?.OneSignal?.User?.addTags(tags);
+      await OneSignal.User.addTags(tags);
     } else if (window.OneSignal) {
       await window.OneSignal.User.addTags(tags);
     }
@@ -214,7 +188,7 @@ export async function setUserTags({ userId, email, isPremium, role }) {
 }
 
 // ─────────────────────────────────────────────
-// SEND NOTIFICATIONS via Vercel API
+// SEND NOTIFICATIONS via Vercel API  (unchanged — server-side, not plugin-dependent)
 // ─────────────────────────────────────────────
 
 async function callNotificationAPI(payload) {
@@ -278,7 +252,6 @@ export async function sendAdminBroadcast({ title, body, url = '/' }) {
 // ─────────────────────────────────────────────
 
 export async function checkAndNotifyDueReminders({ reminders = [], pets = [], userId }) {
-  // Use fast synchronous check — no async callback that can hang
   if (!hasNotificationPermission()) {
     console.log('Skipping reminder notifications — permission not granted');
     return;
@@ -317,7 +290,6 @@ export async function checkAndNotifyDueReminders({ reminders = [], pets = [], us
 }
 
 export async function checkAndNotifyOverdueCare({ careLogs = [], pets = [], userId }) {
-  // Use fast synchronous check — no async callback that can hang
   if (!hasNotificationPermission()) {
     console.log('Skipping care notifications — permission not granted');
     return;
