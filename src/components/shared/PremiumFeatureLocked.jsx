@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Lock, Zap, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "@/api/firebaseClient";
+import { openCheckoutUrl } from "@/lib/utils";
 
 export default function PremiumFeatureLocked({ featureName, onUpgrade }) {
   const [loading, setLoading] = useState(false);
@@ -16,7 +17,7 @@ export default function PremiumFeatureLocked({ featureName, onUpgrade }) {
         cancelUrl: window.location.origin + '/#/account'
       });
       if (response.data?.url) {
-        window.location.href = response.data.url;
+        openCheckoutUrl(response.data.url);
       } else {
         alert("Failed to start checkout. Please try again.");
         setLoading(false);

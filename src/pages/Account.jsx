@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import api from '@/api/firebaseClient';
+import { openCheckoutUrl } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,7 +93,7 @@ export default function Account() {
         cancelUrl: window.location.origin + '/account'
       });
       if (response.data?.url) {
-        window.location.href = response.data.url;
+        openCheckoutUrl(response.data.url);
       } else {
         alert("Failed to start checkout. Please try again.");
       }
@@ -128,12 +129,7 @@ export default function Account() {
         cancelUrl: 'https://paws-n-claws.vercel.app/#/account'
       });
       if (response.data?.url) {
-        const url = response.data.url;
-        if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-          window.open(url, '_system');
-        } else {
-          window.location.href = url;
-        }
+        openCheckoutUrl(response.data.url);
       } else {
         alert("Failed to start checkout. Please try again.");
       }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import api from '@/api/firebaseClient';
+import { openCheckoutUrl } from '@/lib/utils';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dog, Lock, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -61,7 +62,7 @@ export default function PetProfiles() {
         cancelUrl: window.location.origin + '/pets'
       });
       if (response.data?.url) {
-        window.location.href = response.data.url;
+        openCheckoutUrl(response.data.url);
       } else {
         alert("Failed to start checkout. Please try again.");
       }
@@ -87,7 +88,7 @@ export default function PetProfiles() {
         cancelUrl: window.location.origin + '/pets'
       });
       if (response.data?.url) {
-        window.location.href = response.data.url;
+        openCheckoutUrl(response.data.url);
       } else {
         alert("Failed to start checkout. Please try again.");
       }

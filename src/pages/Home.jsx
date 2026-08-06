@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import api from '@/api/firebaseClient';
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "../utils/index";
+import { openCheckoutUrl } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   PawPrint, Heart, FileText, Calendar, MapPin, Zap,
@@ -89,12 +90,7 @@ export default function Home() {
         cancelUrl: 'https://paws-n-claws.vercel.app/#/'
       });
       if (response.data?.url) {
-        const url = response.data.url;
-        if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-          window.open(url, '_system');
-        } else {
-          window.location.href = url;
-        }
+        openCheckoutUrl(response.data.url);
       } else {
         alert('Failed to start checkout. Please try again.');
       }

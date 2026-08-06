@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import api from '@/api/firebaseClient';
+import { openCheckoutUrl } from '@/lib/utils';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check, Loader2 } from "lucide-react";
@@ -52,7 +53,7 @@ export default function PricingPlans({ onSelectPlan }) {
         });
         
         if (response.data?.url) {
-          window.location.href = response.data.url;
+          openCheckoutUrl(response.data.url);
         }
       } catch (error) {
         console.error("Checkout error:", error);
