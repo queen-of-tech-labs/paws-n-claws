@@ -5,6 +5,8 @@ workflows:
     integrations:
       app_store_connect: Royalty Tech Labs API Key
     environment:
+      groups:
+        - firebase_config
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.royaltytechlabs.pawsclaws
