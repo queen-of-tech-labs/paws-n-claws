@@ -6,13 +6,17 @@
  */
 
 import OneSignal from '@onesignal/capacitor-plugin';
+import { Capacitor } from '@capacitor/core';
 
 export const ONESIGNAL_APP_ID = '83fd3bf4-a60e-4651-8a59-6141189b6831';
 
 let initialized = false;
 let initPromise = null;
 
-const isNative = () => !!(window.Capacitor?.isNativePlatform?.());
+// Use the proper @capacitor/core API instead of reading window.Capacitor
+// directly. This is the officially supported way to check platform, and
+// removes any risk of the raw global being read before it's fully ready.
+const isNative = () => Capacitor.isNativePlatform();
 
 // ─────────────────────────────────────────────
 // PERMISSION HELPERS
@@ -61,6 +65,14 @@ export async function initializeOneSignal(userId = null) {
         console.log('OneSignal native initialized');
       } else {
         // ── WEB BROWSER FALLBACK ── (unchanged)
+        // Extra safety net: never load a remote third-party script while
+        // running inside the native app shell, even if isNative() is
+        // somehow wrong. A failure in this branch on native would throw
+        // an opaque cross-origin error that's hard to diagnose.
+        if (Capacitor.getPlatform() !== 'web') {
+          console.warn('Skipping OneSignal web SDK load — not running on web platform');
+          return;
+        }
         if (!window.OneSignal) {
           await new Promise((resolve, reject) => {
             const script = document.createElement('script');
