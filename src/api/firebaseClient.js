@@ -2,6 +2,9 @@ import { initializeApp } from 'firebase/app';
 import { isNativePlatform } from '@/lib/platform';
 import {
   getAuth,
+  initializeAuth,
+  indexedDBLocalPersistence,
+  browserLocalPersistence,
   signInWithPopup,
   signInWithCredential,
   createUserWithEmailAndPassword,
@@ -42,8 +45,23 @@ const firebaseConfig = {
   appId:             import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-const app         = initializeApp(firebaseConfig);
-const fbAuth      = getAuth(app);
+const app = initializeApp(firebaseConfig);
+
+// getAuth()'s automatic persistence-layer detection is known to hang
+// indefinitely inside Capacitor's iOS WKWebView — the custom capacitor://
+// URL scheme confuses its auto-detection logic, and onAuthStateChanged
+// simply never fires as a result, leaving the app stuck on its loading
+// screen forever with no error. The fix is to explicitly tell Firebase
+// which persistence to use on native instead of letting it guess.
+let fbAuth;
+if (isNativePlatform()) {
+  fbAuth = initializeAuth(app, {
+    persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+  });
+} else {
+  fbAuth = getAuth(app);
+}
+
 const db          = getFirestore(app);
 const fbStorage   = getStorage(app);
 const fbFunctions = getFunctions(app);
