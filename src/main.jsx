@@ -19,19 +19,29 @@ const DIAGNOSTIC_WEBHOOK_URL = 'https://webhook.site/c03cc926-16ce-425e-9585-e32
 function reportToWebhook(title, err, consoleLog) {
   if (!DIAGNOSTIC_ENABLED) return;
   try {
-    fetch(DIAGNOSTIC_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title,
-        message: err && err.message ? err.message : String(err),
-        stack: err && err.stack ? err.stack : 'no stack available',
-        consoleLog: (consoleLog || []).map((e) => '[' + e.type + '] ' + e.args.join(' ')),
-        timestamp: new Date().toISOString(),
-      }),
-    }).catch(() => {
-      // Silently ignore network failures — the on-screen display is the fallback.
+    const payload = JSON.stringify({
+      title,
+      message: err && err.message ? err.message : String(err),
+      stack: err && err.stack ? err.stack : 'no stack available',
+      consoleLog: (consoleLog || []).map((e) => '[' + e.type + '] ' + e.args.join(' ')),
+      timestamp: new Date().toISOString(),
     });
+
+    // sendBeacon avoids the CORS preflight that was blocking fetch() in this
+    // WebView, and is specifically designed to reliably deliver data even
+    // when the page is crashing/unloading — exactly this situation.
+    if (navigator.sendBeacon) {
+      const blob = new Blob([payload], { type: 'text/plain' });
+      navigator.sendBeacon(DIAGNOSTIC_WEBHOOK_URL, blob);
+    } else {
+      // Fallback: text/plain content-type avoids the preflight fetch()
+      // would otherwise trigger with 'application/json'.
+      fetch(DIAGNOSTIC_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: payload,
+      }).catch(() => {});
+    }
   } catch (e) {
     // Ignore — never let the diagnostic reporting itself crash the app.
   }
