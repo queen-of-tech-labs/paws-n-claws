@@ -4,14 +4,38 @@ import '@/index.css'
 import '@/globals.css'
 import '@/styles/PetPassport.css'
 import '@/styles/HealthDataManager.css'
+import { Capacitor } from '@capacitor/core'
 
 // test build 123
 
-// ── TEMPORARY DIAGNOSTIC: shows startup errors on-screen ──
-// Since debugging a white screen on a real iPhone normally requires Safari's
-// remote inspector (Mac-only), this catches any crash during startup and
-// renders it as plain text so it's visible directly on the device.
-// Safe to remove once the white-screen issue is resolved.
+// ── TEMPORARY DIAGNOSTIC: iOS ONLY — shows startup errors on-screen AND
+// reports them to a webhook URL for remote viewing, since on-device
+// debugging tools have been unreliable on Windows. Scoped to iOS only so
+// it's a complete no-op on Android and web, which don't need debugging
+// right now. Safe to remove entirely once the iOS issue is resolved.
+const DIAGNOSTIC_ENABLED = Capacitor.getPlatform() === 'ios';
+const DIAGNOSTIC_WEBHOOK_URL = 'https://webhook.site/c03cc926-16ce-425e-9585-e32e54f233e2';
+
+function reportToWebhook(title, err, consoleLog) {
+  if (!DIAGNOSTIC_ENABLED) return;
+  try {
+    fetch(DIAGNOSTIC_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title,
+        message: err && err.message ? err.message : String(err),
+        stack: err && err.stack ? err.stack : 'no stack available',
+        consoleLog: (consoleLog || []).map((e) => '[' + e.type + '] ' + e.args.join(' ')),
+        timestamp: new Date().toISOString(),
+      }),
+    }).catch(() => {
+      // Silently ignore network failures — the on-screen display is the fallback.
+    });
+  } catch (e) {
+    // Ignore — never let the diagnostic reporting itself crash the app.
+  }
+}
 
 // Capture console.error/warn BEFORE anything else runs, so we don't miss
 // early messages from third-party SDKs (like Google Maps) that log their
@@ -19,19 +43,25 @@ import '@/styles/HealthDataManager.css'
 // "Script error." — which is all window.onerror can see for cross-origin
 // scripts. Console messages aren't subject to that restriction, so this is
 // often the only way to see what actually went wrong.
+// Only active on iOS (see DIAGNOSTIC_ENABLED above) — console is left
+// completely untouched on Android and web.
 window.__consoleLog = [];
-const _origError = console.error.bind(console);
-const _origWarn = console.warn.bind(console);
-console.error = (...args) => {
-  window.__consoleLog.push({ type: 'error', args: args.map(String) });
-  _origError(...args);
-};
-console.warn = (...args) => {
-  window.__consoleLog.push({ type: 'warn', args: args.map(String) });
-  _origWarn(...args);
-};
+if (DIAGNOSTIC_ENABLED) {
+  const _origError = console.error.bind(console);
+  const _origWarn = console.warn.bind(console);
+  console.error = (...args) => {
+    window.__consoleLog.push({ type: 'error', args: args.map(String) });
+    _origError(...args);
+  };
+  console.warn = (...args) => {
+    window.__consoleLog.push({ type: 'warn', args: args.map(String) });
+    _origWarn(...args);
+  };
+}
 
 function showFatalError(title, err) {
+  if (!DIAGNOSTIC_ENABLED) return;
+  reportToWebhook(title, err, window.__consoleLog);
   try {
     const root = document.getElementById('root') || document.body;
     const consoleHtml = (window.__consoleLog || [])
@@ -45,6 +75,7 @@ function showFatalError(title, err) {
       '<div>' + (err && err.stack ? err.stack : 'no stack available') + '</div>' +
       '<div style="margin-top:10px;"><strong>Console errors/warnings before crash:</strong></div>' +
       '<div>' + consoleHtml + '</div>' +
+      '<div style="margin-top:10px;color:#080;"><strong>This was also sent to the webhook for remote viewing.</strong></div>' +
       '</div>';
   } catch (displayErr) {
     document.title = 'CRASH: ' + (err && err.message ? err.message : String(err));
@@ -70,6 +101,7 @@ import('@/App.jsx')
     // indicator so it's not invisible.
     setTimeout(() => {
       if (window.__consoleLog && window.__consoleLog.length > 0) {
+        reportToWebhook('Console Errors (app did not crash)', { message: 'See consoleLog field' }, window.__consoleLog);
         const btn = document.createElement('button');
         btn.textContent = '⚠️ ' + window.__consoleLog.length + ' console error(s) — tap to view';
         btn.style.cssText = 'position:fixed;bottom:10px;left:10px;right:10px;z-index:99999;background:#c00;color:#fff;padding:10px;border:none;border-radius:8px;font-size:13px;';
