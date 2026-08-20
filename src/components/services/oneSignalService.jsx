@@ -13,10 +13,22 @@ export const ONESIGNAL_APP_ID = '83fd3bf4-a60e-4651-8a59-6141189b6831';
 let initialized = false;
 let initPromise = null;
 
-// Use the proper @capacitor/core API instead of reading window.Capacitor
-// directly. This is the officially supported way to check platform, and
-// removes any risk of the raw global being read before it's fully ready.
-const isNative = () => Capacitor.isNativePlatform();
+// Use the proper @capacitor/core API AND a bridge-independent fallback.
+// Capacitor.isNativePlatform() depends on the native bridge having
+// correctly injected its JS globals — if that ever fails silently, this
+// check would incorrectly report "not native" and this file would load a
+// remote script (OneSignal's web SDK) inside the native app, which is a
+// likely source of hard-to-diagnose crashes. Checking the URL protocol
+// directly can't be fooled by a bridge failure: capacitor:// is never a
+// real website, full stop.
+const isNative = () => {
+  try {
+    if (Capacitor.isNativePlatform()) return true;
+  } catch (e) {
+    // ignore — fall through to the protocol check below
+  }
+  return window.location.protocol === 'capacitor:' || window.location.protocol === 'ionic:';
+};
 
 // ─────────────────────────────────────────────
 // PERMISSION HELPERS
@@ -48,6 +60,7 @@ export async function initializeOneSignal(userId = null) {
     try {
       if (isNative()) {
         // ── NATIVE iOS / ANDROID ──
+        console.warn('[OneSignal] Taking NATIVE path. protocol=' + window.location.protocol);
         // With the ES import there's no "wait for window.plugins to appear"
         // polling needed — the module is available as soon as it's imported.
         await OneSignal.initialize({ appId: ONESIGNAL_APP_ID });
@@ -65,12 +78,19 @@ export async function initializeOneSignal(userId = null) {
         console.log('OneSignal native initialized');
       } else {
         // ── WEB BROWSER FALLBACK ── (unchanged)
+        console.warn('[OneSignal] Taking WEB branch. protocol=' + window.location.protocol);
         // Extra safety net: never load a remote third-party script while
         // running inside the native app shell, even if isNative() is
         // somehow wrong. A failure in this branch on native would throw
-        // an opaque cross-origin error that's hard to diagnose.
-        if (Capacitor.getPlatform() !== 'web') {
-          console.warn('Skipping OneSignal web SDK load — not running on web platform');
+        // an opaque cross-origin error that's hard to diagnose. This check
+        // doesn't rely on the Capacitor bridge at all — capacitor:// can
+        // never be a real website, regardless of bridge state.
+        const looksNative =
+          window.location.protocol === 'capacitor:' ||
+          window.location.protocol === 'ionic:' ||
+          (() => { try { return Capacitor.isNativePlatform(); } catch { return false; } })();
+        if (looksNative) {
+          console.warn('Skipping OneSignal web SDK load — running inside native app shell');
           return;
         }
         if (!window.OneSignal) {
