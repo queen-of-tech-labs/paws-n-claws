@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-const BASE_URL = window.Capacitor?.isNativePlatform?.() ? 'https://paws-n-claws.vercel.app' : '';
+import { isNativePlatform } from '@/lib/platform';
+const BASE_URL = isNativePlatform() ? 'https://paws-n-claws.vercel.app' : '';
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";

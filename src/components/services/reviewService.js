@@ -1,3 +1,4 @@
+import { isNativePlatform } from '@/lib/platform';
 /**
  * In-App Review Service
  *
@@ -21,7 +22,7 @@ const MIN_CARE_TASKS_COMPLETED = 5;
 const PLAY_STORE_PACKAGE = 'paws.claws.pet.tracker';
 
 function isNativeAndroid() {
-  return !!(window.Capacitor?.isNativePlatform?.());
+  return isNativePlatform();
 }
 
 function getDaysSince(isoDateString) {

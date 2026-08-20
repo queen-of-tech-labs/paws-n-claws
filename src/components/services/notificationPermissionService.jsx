@@ -1,6 +1,7 @@
 import { getSubscriptionId, requestPermission } from './oneSignalService';
+import { isNativePlatform } from '@/lib/platform';
 
-const isNative = () => !!(window.Capacitor?.isNativePlatform?.());
+const isNative = isNativePlatform;
 
 /**
  * Check the current notification permission status

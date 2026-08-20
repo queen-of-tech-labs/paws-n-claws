@@ -1,5 +1,6 @@
 import { clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { isIOS } from '@/lib/platform'
 
 export function cn(...inputs) {
   return twMerge(clsx(inputs))
@@ -26,8 +27,7 @@ export const isIframe = window.self !== window.top;
  * a platform that doesn't require it.
  */
 export function openCheckoutUrl(url) {
-  const isIOS = window.Capacitor?.getPlatform?.() === 'ios';
-  if (isIOS) {
+  if (isIOS()) {
     window.open(url, '_system');
   } else {
     window.location.href = url;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { isNativePlatform } from '@/lib/platform';
 import api from '@/api/firebaseClient';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ import { Bell, Loader2, Check, Crown, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 
-const isNative = () => !!(window.Capacitor?.isNativePlatform?.());
+const isNative = isNativePlatform;
 
 // Get permission using the most reliable method available
 function getNativePermission() {

@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { isNativePlatform } from '@/lib/platform';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +30,7 @@ export default function LostPetFlyer({ open, onClose, pet, user }) {
     try {
       const shareText = `🚨 MISSING ${pet.species?.toUpperCase() || 'PET'} 🚨\n\nName: ${pet.name}\nBreed: ${pet.breed || 'Unknown'}\nColor: ${pet.color || 'Unknown'}\nGender: ${pet.gender || 'Unknown'}${pet.weight ? `\nWeight: ${pet.weight} lbs` : ''}${lastSeen ? `\nLast seen: ${lastSeen}` : ''}${reward ? `\nReward: ${reward}` : ''}\n\nIf found, please contact:\n${contactPhone ? `📞 ${contactPhone}\n` : ''}${contactEmail ? `📧 ${contactEmail}` : ''}\n\nPlease share to help find ${pet.name}! 🙏`;
 
-      const isNative = !!(window.Capacitor?.isNativePlatform?.());
+      const isNative = isNativePlatform();
 
       if (isNative && navigator.share) {
         await navigator.share({

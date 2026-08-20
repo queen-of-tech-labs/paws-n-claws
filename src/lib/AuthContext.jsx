@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
+import { isNativePlatform } from '@/lib/platform';
 import { fbAuth, db, auth as authHelpers } from '@/api/firebaseClient';
 import { onAuthStateChanged, sendEmailVerification } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -151,7 +152,7 @@ export const AuthProvider = ({ children }) => {
         }, 2000);
       } else {
         // Already set up — silently re-login with OneSignal on native
-        const isNative = !!(window.Capacitor?.isNativePlatform?.());
+        const isNative = isNativePlatform();
         if (isNative) {
           window.plugins?.OneSignal?.login(fullUser.id);
         }

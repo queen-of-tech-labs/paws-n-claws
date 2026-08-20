@@ -1,7 +1,8 @@
 import api from '@/api/firebaseClient';
+import { isNativePlatform } from '@/lib/platform';
 import { initializeOneSignal, getSubscriptionId } from './oneSignalService';
 
-const isNative = () => !!(window.Capacitor?.isNativePlatform?.());
+const isNative = isNativePlatform;
 
 export async function registerDeviceOnLogin(user) {
   if (!user || !user.id) {

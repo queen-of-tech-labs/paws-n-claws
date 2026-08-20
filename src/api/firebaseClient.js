@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { isNativePlatform } from '@/lib/platform';
 import {
   getAuth,
   signInWithPopup,
@@ -70,7 +71,7 @@ export const auth = {
   // - On Android: uses native SocialLogin plugin (works in APK)
   // - On web: uses signInWithPopup with firebaseapp.com authDomain (works on Vercel)
   async redirectToLogin() {
-    const isNative = !!(window.Capacitor?.isNativePlatform?.());
+    const isNative = isNativePlatform();
     if (isNative) {
       const { SocialLogin } = await import('@capgo/capacitor-social-login');
       await SocialLogin.initialize({

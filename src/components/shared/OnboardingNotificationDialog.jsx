@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { isNativePlatform } from '@/lib/platform';
 import { markNotifSetupDone } from '@/lib/AuthContext';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription
@@ -6,7 +7,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Bell, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 
-const isNative = () => !!(window.Capacitor?.isNativePlatform?.());
+const isNative = isNativePlatform;
 
 export default function OnboardingNotificationDialog({ open, onOpenChange, userId }) {
   const [loading, setLoading] = useState(false);

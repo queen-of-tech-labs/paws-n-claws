@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { isNativePlatform } from '@/lib/platform';
 import api from '@/api/firebaseClient';
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -87,7 +88,7 @@ export default function VeterinarianForm({ veterinarian, onSuccess, onCancel }) 
     if (!checked) { setUseLocation(false); return; }
     if (userLocation) { setUseLocation(true); return; }
 
-    const isNative = !!(window.Capacitor?.isNativePlatform?.());
+    const isNative = isNativePlatform();
 
     if (isNative) {
       try {
@@ -150,7 +151,7 @@ export default function VeterinarianForm({ veterinarian, onSuccess, onCancel }) 
     setErrors({});
 
     try {
-      const isNative = !!(window.Capacitor?.isNativePlatform?.());
+      const isNative = isNativePlatform();
       const baseUrl = isNative ? 'https://paws-n-claws.vercel.app' : '';
 
       // Build query params

@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { MapPin, Search, Phone, Globe, Star, AlertTriangle, Loader2, Navigation } from "lucide-react";
 import GoogleMap from "@/components/GoogleMap";
 import { motion } from "framer-motion";
+import { isNativePlatform } from '@/lib/platform';
 
 
 // Use absolute URL on native Android, relative on web
-const BASE_URL = window.Capacitor?.isNativePlatform?.()
+const BASE_URL = isNativePlatform()
   ? 'https://paws-n-claws.vercel.app'
   : '';
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "./utils/index";
+import { isNativePlatform } from './lib/platform';
 import api from '@/api/firebaseClient';
 import {
   PawPrint, Home, Dog, Heart, FileText, Calendar,
@@ -60,7 +61,7 @@ const adminNavItems = [
 
 export default function Layout({ children, currentPageName }) {
   useEffect(() => {
-    if (window.Capacitor?.isNativePlatform?.()) {
+    if (isNativePlatform()) {
       StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
       StatusBar.setBackgroundColor({ color: '#0f172a' }).catch(() => {});
     }
@@ -376,7 +377,7 @@ export default function Layout({ children, currentPageName }) {
         <main className="flex-1 overflow-x-hidden">
           {children}
           {/* Safe area spacer for Android navigation bar */}
-          {window.Capacitor?.isNativePlatform?.() && (
+          {isNativePlatform() && (
             <div style={{ height: '80px', flexShrink: 0 }} aria-hidden="true" />
           )}
         </main>
