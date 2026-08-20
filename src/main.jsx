@@ -69,9 +69,31 @@ if (DIAGNOSTIC_ENABLED) {
   };
 }
 
+// Tracks whether React has successfully rendered at least once. Errors
+// that happen AFTER this point get reported but don't destroy the UI —
+// window.onerror fires for ANY uncaught script error anywhere on the
+// page, even harmless ones that don't actually stop the app from
+// working. Wiping the screen on every single one of those was possibly
+// hiding a working app behind a false "crash" screen.
+window.__appHasRendered = false;
+
 function showFatalError(title, err) {
   if (!DIAGNOSTIC_ENABLED) return;
   reportToWebhook(title, err, window.__consoleLog);
+
+  if (window.__appHasRendered) {
+    // App already rendered successfully — don't destroy it. Just show a
+    // small non-blocking banner so we know an error happened without
+    // hiding whatever is actually on screen.
+    try {
+      const banner = document.createElement('div');
+      banner.textContent = '⚠️ ' + title + ': ' + (err && err.message ? err.message : String(err)) + ' (reported, app left visible)';
+      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#c00;color:#fff;padding:8px;font-size:11px;font-family:monospace;';
+      document.body.appendChild(banner);
+    } catch (e) {}
+    return;
+  }
+
   try {
     const root = document.getElementById('root') || document.body;
     const consoleHtml = (window.__consoleLog || [])
@@ -105,6 +127,7 @@ import('@/App.jsx')
     ReactDOM.createRoot(document.getElementById('root')).render(
       <App />
     );
+    window.__appHasRendered = true;
     // If the app rendered successfully but something still logged an
     // error/warning in the background (e.g. Google Maps failing silently
     // on a page that doesn't crash the whole app), show a small tappable
