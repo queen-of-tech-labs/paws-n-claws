@@ -49,7 +49,7 @@ export async function initializeOneSignal(userId = null) {
         console.warn('[OneSignal] Taking NATIVE path. protocol=' + window.location.protocol);
         // With the ES import there's no "wait for window.plugins to appear"
         // polling needed — the module is available as soon as it's imported.
-        await OneSignal.initialize({ appId: ONESIGNAL_APP_ID });
+        await OneSignal.initialize(ONESIGNAL_APP_ID);
 
         OneSignal.Notifications.addEventListener('click', (event) => {
           console.log('OneSignal notification clicked:', event);
