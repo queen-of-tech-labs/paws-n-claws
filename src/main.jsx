@@ -122,6 +122,24 @@ window.addEventListener('unhandledrejection', (event) => {
   showFatalError('Unhandled Promise Rejection', event.reason);
 });
 
+// Shows full console log details as a dismissible overlay on top of the
+// app, without destroying it — used by the "tap to view" button so a
+// deliberate manual inspection actually shows something, unlike
+// showFatalError() which intentionally avoids covering up a working app.
+function showConsoleLogOverlay() {
+  const consoleHtml = (window.__consoleLog || [])
+    .map((entry) => '[' + entry.type + '] ' + entry.args.join(' '))
+    .join('\n') || '(no console errors/warnings captured)';
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:#fff;color:#111;font-family:monospace;font-size:13px;padding:20px;overflow:auto;white-space:pre-wrap;word-break:break-word;';
+  overlay.innerHTML =
+    '<div style="margin-bottom:12px;"><button id="__closeDiagOverlay" style="padding:8px 16px;font-size:14px;">Close</button></div>' +
+    '<h2 style="color:#c00;">Captured Console Errors/Warnings</h2>' +
+    '<div>' + consoleHtml + '</div>';
+  document.body.appendChild(overlay);
+  document.getElementById('__closeDiagOverlay').onclick = () => overlay.remove();
+}
+
 import('@/App.jsx')
   .then(({ default: App }) => {
     ReactDOM.createRoot(document.getElementById('root')).render(
@@ -138,7 +156,7 @@ import('@/App.jsx')
         const btn = document.createElement('button');
         btn.textContent = '⚠️ ' + window.__consoleLog.length + ' console error(s) — tap to view';
         btn.style.cssText = 'position:fixed;bottom:10px;left:10px;right:10px;z-index:99999;background:#c00;color:#fff;padding:10px;border:none;border-radius:8px;font-size:13px;';
-        btn.onclick = () => showFatalError('Captured Console Errors (app did not crash)', { message: 'See console log below', stack: '' });
+        btn.onclick = showConsoleLogOverlay;
         document.body.appendChild(btn);
       }
     }, 3000);
