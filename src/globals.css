@@ -9,13 +9,19 @@ body::-webkit-scrollbar,
 *::-webkit-scrollbar {
   display: none !important;
 }
-/* ─── Android EdgeToEdge safe-area fixes ───────────────────────────────────
- * When EdgeToEdge is enabled in capacitor.config.json, the app draws behind
- * the phone's status bar. We use CSS env(safe-area-inset-top) to push our
- * content down so it doesn't collide with the clock / notification icons.
+/* ─── Native app safe-area fixes (status bar / home indicator) ─────────────
+ * On native iOS and Android, the app draws edge-to-edge behind the phone's
+ * status bar (top) and gesture/home indicator (bottom). We use CSS
+ * env(safe-area-inset-*) to push our content away from those areas so it
+ * doesn't collide with the clock/battery icons up top or get covered by
+ * the home indicator down below.
  *
- * Capacitor automatically sets the viewport-fit=cover meta tag which enables
- * env() support. These classes are applied to the mobile header and sidebar.
+ * IMPORTANT: env(safe-area-inset-*) only reports real, non-zero values on
+ * iOS when the <meta name="viewport"> tag includes viewport-fit=cover (see
+ * index.html) — without it, iOS silently reports 0 for all of these, even
+ * though the content really is drawn under the notch/home indicator.
+ * Android's WebView doesn't have this requirement, which is why this was
+ * only ever tuned/tested against Android and quietly did nothing on iOS.
  * ────────────────────────────────────────────────────────────────────────── */
 
 /* Mobile top header — adds status bar height + original 12px vertical padding */
@@ -26,4 +32,11 @@ body::-webkit-scrollbar,
 /* Sidebar logo area — adds status bar height + original 24px top padding */
 .safe-area-sidebar-top {
   padding-top: max(24px, calc(env(safe-area-inset-top) + 24px));
+}
+
+/* Sidebar account/login area (bottom of the nav drawer) — adds home
+   indicator height + original 16px bottom padding, so it's not sitting
+   flush under the swipe-up gesture area. */
+.safe-area-sidebar-bottom {
+  padding-bottom: max(16px, calc(env(safe-area-inset-bottom) + 16px));
 }

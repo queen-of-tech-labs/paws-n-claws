@@ -319,7 +319,7 @@ export default function Layout({ children, currentPageName }) {
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-800">
+        <div className="p-4 border-t border-slate-800 safe-area-sidebar-bottom">
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -376,9 +376,16 @@ export default function Layout({ children, currentPageName }) {
 
         <main className="flex-1 overflow-x-hidden">
           {children}
-          {/* Safe area spacer for Android navigation bar */}
+          {/* Safe area spacer for the bottom system nav bar / home indicator.
+              80px covers Android's nav bar comfortably; on iOS this also
+              grows with env(safe-area-inset-bottom) via the max(), so it
+              scales correctly across notch/Dynamic Island device shapes
+              instead of relying on a flat number tuned only for Android. */}
           {isNativePlatform() && (
-            <div style={{ height: '80px', flexShrink: 0 }} aria-hidden="true" />
+            <div
+              style={{ height: 'max(80px, calc(env(safe-area-inset-bottom) + 60px))', flexShrink: 0 }}
+              aria-hidden="true"
+            />
           )}
         </main>
       </div>
