@@ -24,6 +24,11 @@ workflows:
         script: npm run build
       - name: Sync Capacitor
         script: npx cap sync ios
+      # NOTE: ios/App/App/GoogleService-Info.plist is committed directly to this repo
+      # (Firebase's own iOS config file isn't treated as a secret — it's restricted by
+      # bundle ID + Firebase Security Rules, not by secrecy), so no build step is needed
+      # to write it. If it's ever regenerated in the Firebase console, just replace that
+      # file in the repo directly.
       - name: Resolve SPM packages
         script: |
           xcodebuild -resolvePackageDependencies \

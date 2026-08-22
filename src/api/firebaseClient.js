@@ -86,14 +86,23 @@ export const auth = {
   },
 
   // Google sign-in:
-  // - On Android: uses native SocialLogin plugin (works in APK)
+  // - On Android: uses native SocialLogin plugin (works in APK) — only needs webClientId
+  // - On iOS: uses native SocialLogin plugin too, but ALSO needs iOSClientId (a separate
+  //   OAuth client, created automatically when you add an iOS app in the Firebase console)
+  //   or the plugin throws "No provider was initialized". See VITE_GOOGLE_IOS_CLIENT_ID
+  //   in .env.example for where this value comes from.
   // - On web: uses signInWithPopup with firebaseapp.com authDomain (works on Vercel)
   async redirectToLogin() {
     const isNative = isNativePlatform();
     if (isNative) {
       const { SocialLogin } = await import('@capgo/capacitor-social-login');
+      const webClientId = '264364776080-ig58tvhl9m7m6lp4eioa1qmpk2dc99l0.apps.googleusercontent.com';
       await SocialLogin.initialize({
-        google: { webClientId: '264364776080-ig58tvhl9m7m6lp4eioa1qmpk2dc99l0.apps.googleusercontent.com' },
+        google: {
+          webClientId,
+          iOSClientId: import.meta.env.VITE_GOOGLE_IOS_CLIENT_ID,
+          iOSServerClientId: webClientId,
+        },
       });
       const result = await SocialLogin.login({ provider: 'google', options: {} });
       const idToken = result?.result?.idToken || result?.result?.authentication?.idToken;

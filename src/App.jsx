@@ -201,7 +201,7 @@ const NotificationPromptManager = () => {
 
 // ── All routes ─────────────────────────────────────────────────────────────
 const AppRoutes = () => {
-  const { isLoadingAuth, isAuthenticated, isEmailVerified } = useAuth();
+  const { isLoadingAuth, isAuthenticated } = useAuth();
 
   if (isLoadingAuth) return <Spinner />;
 
@@ -209,11 +209,15 @@ const AppRoutes = () => {
     <>
       <Routes>
         <Route path="/" element={<Home />} />
-        {/* Only redirect from /login to /dashboard if fully authenticated AND verified */}
+        {/* Redirect away from /login as soon as the user is authenticated, verified
+            or not — ProtectedRoute on /dashboard is what decides whether to show
+            the real dashboard or the VerifyEmailScreen. Previously this required
+            isEmailVerified too, which left freshly-signed-up (unverified) users
+            stuck on the signup form forever since /login never navigated away. */}
         <Route
           path="/login"
           element={
-            isAuthenticated && isEmailVerified
+            isAuthenticated
               ? <Navigate to="/dashboard" replace />
               : <LoginPage />
           }

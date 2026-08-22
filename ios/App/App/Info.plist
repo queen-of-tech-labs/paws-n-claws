@@ -70,5 +70,21 @@
 	<string>Paws &amp; Claws uses your location to help you find and add nearby veterinarians to your pet's profile.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Paws &amp; Claws uses your location to help you find and add nearby veterinarians to your pet's profile.</string>
+	<!--
+	  Google Sign-In callback URL scheme — this is the REVERSED_CLIENT_ID from
+	  ios/App/App/GoogleService-Info.plist. Without this, Google Sign-In on iOS
+	  fails silently or can't return control to the app after the user signs in.
+	  If you ever regenerate GoogleService-Info.plist (e.g. rotate credentials),
+	  update this string to match its new REVERSED_CLIENT_ID value.
+	-->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.264364776080-usacqv69jkr75496k6beeik6o12j31de</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
