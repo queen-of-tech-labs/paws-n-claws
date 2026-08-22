@@ -8,7 +8,8 @@
   "plugins": {
     "SocialLogin": {
       "google": {
-        "webClientId": "264364776080-ig58tvhl9m7m6lp4eioa1qmpk2dc99l0.apps.googleusercontent.com"
+        "webClientId": "264364776080-ig58tvhl9m7m6lp4eioa1qmpk2dc99l0.apps.googleusercontent.com",
+        "iOSClientId": "264364776080-usacqv69jkr75496k6beeik6o12j31de.apps.googleusercontent.com"
       }
     },
     "EdgeToEdge": {
