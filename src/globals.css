@@ -20,6 +20,15 @@ body::-webkit-scrollbar,
 html, body, #root {
   max-width: 100%;
   overflow-x: hidden;
+  /* overflow-x: hidden alone stops CONTENT from overflowing, but on iOS's
+     WKWebView it does NOT reliably stop the user's finger from dragging the
+     whole page sideways (the "rubber-band" elastic-bounce gesture) if
+     something briefly measures wider than the screen - which is exactly
+     what a Google Map does for a moment while it's resizing after search
+     results load. These two properties address the DRAG GESTURE itself,
+     separately from the content-overflow fix above: */
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
 }
 /* ─── Native app safe-area fixes (status bar / home indicator) ─────────────
  * On native iOS and Android, the app draws edge-to-edge behind the phone's

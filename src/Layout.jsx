@@ -67,6 +67,17 @@ export default function Layout({ children, currentPageName }) {
     }
   }, []);
 
+  // Safety net: Layout remounts fresh every time the route changes (each
+  // <Route>'s element is its own <Layout> instance), so this runs once per
+  // page visit. If a previous page (e.g. Animal Rescues after a search) ever
+  // left the document scrolled sideways, this guarantees the NEXT page always
+  // starts back at the top-left instead of inheriting that scroll position.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.documentElement.scrollLeft = 0;
+    document.body.scrollLeft = 0;
+  }, [currentPageName]);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [showPremiumUnlocked, setShowPremiumUnlocked] = useState(false);

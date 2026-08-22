@@ -130,6 +130,29 @@ export default function GoogleMap({ center, markers = [], height = "400px" }) {
     });
   }, [center, markers]);
 
+  // Belt-and-suspenders resize handling: the effect above only re-triggers
+  // Maps' resize when the `center`/`markers` PROPS change, which assumes
+  // those are the only things that ever change the map's actual on-screen
+  // size. In practice the map's container can also change size for reasons
+  // that have nothing to do with those props - e.g. on AnimalRescues the
+  // results list sitting above/beside the map (in the CSS grid) grows once
+  // search results come in, which reflows and resizes the map's box even
+  // though `center`/`markers` may update on a slightly different tick. A
+  // ResizeObserver watches the actual container element itself, so it
+  // catches every case, not just the ones we happened to think of.
+  useEffect(() => {
+    if (!mapRef.current || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(() => {
+      if (mapInstanceRef.current && window.google?.maps) {
+        window.google.maps.event.trigger(mapInstanceRef.current, "resize");
+      }
+    });
+    observer.observe(mapRef.current);
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div
       ref={mapRef}
