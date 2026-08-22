@@ -10,7 +10,17 @@ import React, { useEffect, useRef } from "react";
 // Per Google's own guidance, Maps JavaScript API browser keys are meant to be
 // exposed client-side; they're locked down with application/referrer restrictions
 // in Google Cloud Console, not by keeping the key secret.
-const GOOGLE_MAPS_API_KEY = "AIzaSyAGymoSNBk0ueqk5rdD9jnNBP9bSMXFnX8";
+//
+// UPDATE: the key that was here (ending in ...MXFnX8, originally sourced from
+// VITE_GOOGLE_PLACES_API_KEY) turned out to belong to some other Google Cloud
+// project - not paws-claws-pet-tracker-3t0ana, the project this app's billing
+// (Blaze plan, "Firebase Payment" account) is actually set up on. That mismatch
+// is exactly what produced BillingNotEnabledMapError even though billing looked
+// completely correct in the console: the key was real, just not ours. Replaced
+// with the "Browser key (auto created by Firebase)" from Credentials in the
+// correct project - confirmed unrestricted (no application/website restriction)
+// and confirmed to include Maps JavaScript API in its allowed-APIs list.
+const GOOGLE_MAPS_API_KEY = "AIzaSyAuRNOdRNmp2_RgFbMOHc2GafbQeAuWG14";
 
 let googleMapsLoaded = false;
 let loadingPromise = null;
