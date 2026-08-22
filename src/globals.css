@@ -9,6 +9,18 @@ body::-webkit-scrollbar,
 *::-webkit-scrollbar {
   display: none !important;
 }
+
+/* Prevent horizontal panning/overflow at the document level. Individual
+   components (e.g. Layout.jsx's <main>) already set overflow-x-hidden on
+   themselves, but that only clips overflow inside those specific elements —
+   it doesn't stop the page/WebView itself from being draggable sideways if
+   ANY element anywhere (a dropdown, a card, a flex row that doesn't quite
+   wrap) ends up even a few pixels wider than the screen. This is the
+   root-level backstop so that never shows up as "content off the edge." */
+html, body, #root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
 /* ─── Native app safe-area fixes (status bar / home indicator) ─────────────
  * On native iOS and Android, the app draws edge-to-edge behind the phone's
  * status bar (top) and gesture/home indicator (bottom). We use CSS

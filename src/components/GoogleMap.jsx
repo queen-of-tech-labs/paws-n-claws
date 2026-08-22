@@ -1,6 +1,16 @@
 import React, { useEffect, useRef } from "react";
 
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
+// Hardcoded directly rather than read from import.meta.env.VITE_GOOGLE_PLACES_API_KEY.
+// That env var was never set up in the Codemagic (iOS) build pipeline, so it came
+// out as "undefined" in every iOS build, which made the Maps script URL request
+// "...js?key=undefined" and produced Google's own hard failure screen ("Oops!
+// Something went wrong. This page didn't load Google Maps correctly."). This is the
+// same class of bug as the earlier Google Sign-In "No provider was initialized"
+// issue - a build-time value that was only ever verified for local/Android builds.
+// Per Google's own guidance, Maps JavaScript API browser keys are meant to be
+// exposed client-side; they're locked down with application/referrer restrictions
+// in Google Cloud Console, not by keeping the key secret.
+const GOOGLE_MAPS_API_KEY = "AIzaSyAGymoSNBk0ueqk5rdD9jnNBP9bSMXFnX8";
 
 let googleMapsLoaded = false;
 let loadingPromise = null;
