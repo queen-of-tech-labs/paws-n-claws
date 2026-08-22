@@ -69,7 +69,13 @@ export default function TimePicker15({ value, onChange, required, className }) {
   const triggerClass = className || 'bg-slate-800 border-slate-700 text-white';
 
   return (
-    <div className="flex gap-1">
+    // flex-wrap is a belt-and-suspenders guard: the three selects below need
+    // ~232px in a row (w-16 + w-20 + w-20 + gaps). Some dialogs place this
+    // inside a 2-column grid cell that's narrower than that on phone screens
+    // (see CareLogForm.jsx's reminder section), which pushed this row past
+    // the dialog's edge. Letting it wrap to a second line keeps it inside
+    // its container instead of forcing the row wider than its parent.
+    <div className="flex flex-wrap gap-1">
       {/* Hour */}
       <Select value={String(hour12)} onValueChange={handleHourChange} required={required}>
         <SelectTrigger className={`${triggerClass} w-16`}>

@@ -190,7 +190,7 @@ export default function CareLogForm({ open, onClose, petId, pets, entry, onSaved
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle className="text-[#3D2E24]">
             {entry?.id ? "Edit Entry" : "New Care Entry"}
